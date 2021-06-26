@@ -7,10 +7,11 @@ import MSG from '../MSGTYPE.js';
 import SocketGroup from './SocketGroup.js';
 
 // Test Includes
-import {ServerWorld} from "../common/ServerWorld.js"
+import {ServerInstance} from "./ServerInstance.js"
 import {EntityRecord} from "../common/EntityRecord.js";
+import TileCollection from "../common/TileCollection.js"
 
-let packet = new TypedBuffer(1400);
+let packet = new TypedBuffer(50000);
 
 // Server Creation
 var wss = new WebSocket.Server({port: 8080});
@@ -19,17 +20,21 @@ wss.on('listening',function(){
     console.log(`SERVER |  Listening on "${details.address}:${details.port}"`);
 });
 
-// Client Connection Flow - Client begins authenticating automatically
+// Client Connection Flow
 wss.on('connection',function(ws){
     Connections.register(ws);
-    Connections.set_group(ws,"authenticating");
-    
-    packet.writeByte(MSG.AUTH_BEGIN);
-    ws.send(packet.flush());
+    authenticating.add(ws);
 });
 
-let idIncrementer = 0;
-Connections.authenticating.on(MSG.AUTH_TOKEN,(ws,data)=>{
+// Authentication
+let authenticating = new SocketGroup();
+
+authenticating.onAdd = (ws)=>{
+    packet.writeByte(MSG.AUTH_BEGIN);
+    ws.send(packet.flush());
+};
+
+authenticating.on(MSG.AUTH_TOKEN,(ws,data)=>{
     // TODO: reimplement JWT
     let username = data.readAscii();
 
@@ -50,48 +55,92 @@ Connections.authenticating.on(MSG.AUTH_TOKEN,(ws,data)=>{
         username : username,
         id : idIncrementer++
     };
-    
-    console.log(`AUTH | ${identity.username} | logged in.`);
     ws.identity = identity;
     
-    // Inform client of auth success
-    Connections.set_group(ws,"loading");
     packet.writeByte(MSG.AUTH_SUCCESS);
     ws.send(packet.flush());
+    console.log(`AUTH | ${identity.username} | logged in.`);
+    authenticating.remove(ws);
 
     // Send Full state to client
-    packet.writeByte(MSGTYPE.FULLSTATE);
-    world.fullstate(packet);
-    ws.send(packet.flush());
-});
+    instance.addPlayer(ws);
+});let idIncrementer = 0;
 
-// Client load success
-Connections.loading.on(MSG.FULLSTATE_SUCCESS, (ws,data)=>{
-    // Add client to the match
-    console.log(`GAME | ${ws.identity.username} | entered game.`);
-    Connections.set_group(ws,"playing");
-});
+// // Client load success
+// Connections.loading.on(MSG.FULLSTATE_SUCCESS, (ws,data)=>{
+//     // Add client to the match
+//     console.log(`GAME | ${ws.identity.username} | entered game.`);
+//     Connections.set_group(ws,"playing");
+
+//     world.createClientEntity(ws,new EntityRecord("Player",0,0));
+//     world.createClientEntity(ws,new EntityRecord("ClientCursor"));
+
+//     // Send tiles to player
+//     packet.writeByte(MSG.MAP_SET);
+//     world.tileCollection.serialize(packet);
+//     ws.send(packet.flush());
+// });
+
+// Connections.playing.onDisconnect = (socket)=>{
+//     // Remove entities owned by the disconnecting client
+//     console.log(`GAME | ${socket.identity.username} | clean entities`);
+//     world.networkedEntities.forEach((entity)=>{
+//         if (entity.owner == socket){
+//             world.removeEntity(entity.id);
+//         }
+//     });
+// };
 
 // Game server
+let instance = new ServerInstance("Test");
 const TIMESTEP = 16;
 function loop(){
     // Simulation
     let dt = TIMESTEP / 1000.0;
-    world.update(dt);
-
-    // Send State to all clients
-    packet.writeByte(MSG.STATE);
-    world.state(packet);
-    Connections.playing.broadcast(packet.flush());
+    instance.run(dt);
 
     setTimeout(loop, TIMESTEP);
 }
 
-let world = new ServerWorld();
+let timeout;
+instance.players.on(MSG.TILE_SET,(ws,data)=>{
+    let x = data.readByte();
+    let y = data.readByte();
+    let type = data.readByte();
 
-let testRecord = new EntityRecord();
-testRecord[0] = "Player";
-testRecord[1] = 23;
-testRecord[2] = 62;
 
-world.edict.set(23,testRecord);
+    instance.tileCollection.setTile(x,y,type);
+
+    packet.writeByte(MSG.TILE_SET);
+    packet.writeByte(x);
+    packet.writeByte(y);
+    packet.writeByte(type);
+
+    instance.players.broadcast(packet.flush());
+
+    let bounds = instance.tileCollection.bounds();
+});
+
+instance.players.on(MSG.TILE_REMOVE,(ws,data)=>{
+
+    let x = data.readByte();
+    let y = data.readByte();
+    instance.tileCollection.removeTile(x,y);
+
+
+    packet.writeByte(MSG.TILE_REMOVE);
+    packet.writeByte(x);
+    packet.writeByte(y);
+    instance.players.broadcast(packet.flush());
+});
+
+// setInterval(() => {
+//     let testRecord = new EntityRecord();
+//     testRecord[0] = "Box";
+//     testRecord[1] = Math.floor(Math.random()*500)+84;
+//     testRecord[2] = 0;
+
+//     world.createServerEntity(testRecord);
+// }, 50);
+
+loop();

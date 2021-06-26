@@ -126,12 +126,20 @@ function readAsciiLong(){
     return str;
 }
 
+function getPosition(){
+    return readPos;
+}
+
 export {
+    getPosition,
     advance,
+
     setBuffer,
     setBufferRaw,
     getData,
+
     decodeTyped,
+
     readByte,
     readInt8,
     readInt16,

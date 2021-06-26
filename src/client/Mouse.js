@@ -1,6 +1,7 @@
 let x=0;
 let y=0;
 let down = 0;
+let right = 0;
 let _pressed = false;
 let _released = false;
 
@@ -27,7 +28,8 @@ function update(){
 
     let downWas = down;
 
-    down = interaction.mouse.buttons;
+    down = interaction.mouse.buttons & 1;
+    right = interaction.mouse.buttons & 2;
     _pressed = false;
     _released = false;
     if (!downWas&&down)
@@ -56,10 +58,16 @@ export default {
     enable,
     disable,
     clear,
+    get mouse(){
+        return interaction.mouse;
+    },
+
     get down() {
         return down; 
     },
-
+    get right() {
+        return right; 
+    },
     get x() {
        return x; 
     },

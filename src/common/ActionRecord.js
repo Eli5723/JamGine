@@ -1,4 +1,4 @@
-class EntityRecord extends Array {
+class ActionRecord extends Array {
     serialize(buffer){
         buffer.writeAscii(this[0]); // Type
         buffer.writeByte(this.length-1); // Prop count
@@ -8,7 +8,7 @@ class EntityRecord extends Array {
     }
 
     static From(data){
-        let record = new EntityRecord();
+        let record = new ActionRecord();
 
         let type = data.readAscii(); // Type
         record.push(type);
@@ -22,4 +22,4 @@ class EntityRecord extends Array {
     }
 }
 
-export {EntityRecord};
+export {ActionRecord};

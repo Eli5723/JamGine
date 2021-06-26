@@ -1,3 +1,4 @@
+let _instance;
 class TypedBuffer {
     constructor(size){
         this.size = size||1400;
@@ -8,7 +9,7 @@ class TypedBuffer {
 
     static getInstance(){
         if (!_instance)
-            _instance = new PacketBuilder(8000);
+            _instance = new TypedBuffer(8000);
         return _instance; 
     }
 

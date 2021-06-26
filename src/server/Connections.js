@@ -24,21 +24,6 @@ function get_socket(id){
     return sockets[id];
 }
 
-// Connection Groups
-function set_group(socket,groupId){
-    // Remove socket from its old group
-    if (socket.group){
-        socket.group.remove(socket);
-    }
-
-    let newGroup = groups[groupId];
-  
-    if (typeof newGroup == 'undefined')
-        console.warn("Attempted to set an invalid group.");
-
-    newGroup.add(socket);
-}
-
 //Message Handling
 function resolveEvent(socket,e){
     socket.lastContact = Date.now();
@@ -50,19 +35,6 @@ function resolveEvent(socket,e){
     //} catch (e) {
     //}
 }
-
-// const TIMEOUT = 5000;
-// function checkDisconnected(){
-//     let now = Date.now();
-//     let socket, socketId;
-//     for (socketId in sockets){
-//         let socket = sockets[socketId];
-//         if (now - socket.lastContact > TIMEOUT){
-//             socket.terminate();
-//         }
-//     }
-// }
-// setInterval(checkDisconnected,TIMEOUT);
 
 function resolveDisconnect(socket){
     if (socket.identity)
@@ -78,17 +50,9 @@ function resolveDisconnect(socket){
 let authenticating = new SocketGroup();
 let loading = new SocketGroup();
 let playing = new SocketGroup();
-let groups = {authenticating,loading,playing};
 
 export {
     register,
     get_socket,
     sockets,
-
-    set_group,
-
-    groups,
-    authenticating,
-    loading,
-    playing,
 };

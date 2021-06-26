@@ -1,3 +1,5 @@
+import MSGTYPE from "../MSGTYPE.js"
+
 class SocketGroup {
 
     constructor(){
@@ -6,6 +8,9 @@ class SocketGroup {
 
         this.size = 0;
 
+        this.onAdd = function(){};
+        this.onRemove=  function(){};
+
         this.onDisconnect = function(){};
     }
 
@@ -13,6 +18,7 @@ class SocketGroup {
         this.sockets[socket.id] = socket;
         socket.group = this;
         this.size++;
+        this.onAdd(socket);
     }
 
     remove(socket){
@@ -39,6 +45,8 @@ class SocketGroup {
 
     broadcast(buffer){
         for (let _id in this.sockets){
+            if (this.sockets[_id].readyState != 1)
+                return;
             this.sockets[_id].send(buffer);
         }
     }
@@ -48,6 +56,9 @@ class SocketGroup {
         for (let _id in this.sockets){
             if (_id == _idEx)
                 continue;
+
+            if (this.sockets[_id].readyState != 1)
+                return;
 
             this.sockets[_id].send(buffer);
         }
@@ -60,8 +71,16 @@ class SocketGroup {
     }
 
     resolveEvent(socket,msgType,buffer){
-        if (this.events[msgType])
-            this.events[msgType](socket,buffer);
+        let callback = this.events[msgType];
+        try {
+            if (callback)
+                callback(socket,buffer);
+        } catch (e) {
+            let eventName = MSGTYPE.get_key(msgType);
+            console.warn(`Failed to handle client event of type ${eventName}`);
+            console.warn(e.toString());
+            console.warn(e.stack);
+        }
     }
 
     resolveDisconnect(socket){

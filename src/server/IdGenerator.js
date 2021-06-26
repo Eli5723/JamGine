@@ -1,3 +1,5 @@
+const maxUint16 = 65535;
+
 class IdGenerator {
     constructor(){
         this._incrementer = 0;
@@ -5,7 +7,7 @@ class IdGenerator {
 
     getId(){
         let id = this._incrementer++;
-        this._incrementer %= 65535;
+        this._incrementer %= maxUint16;
         return id;
     }
 

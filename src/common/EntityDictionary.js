@@ -2,19 +2,19 @@ import {EntityRecord} from "./EntityRecord.js"
 
 class EntityDictionary extends Map {
     serialize(buffer){
-        buffer.writeByte(this.size); // size
+        buffer.writeUInt16(this.size); // size
         
         this.forEach((record,id)=>{
-            buffer.writeByte(id); // id
+            buffer.writeUInt16(id); // id
             record.serialize(buffer) // record
         });
     }
 
     decode(data){
-        let count = data.readByte(); // size
+        let count = data.readUint16(); // size
 
         for (let i=0; i < count; i++){
-            let id = data.readByte(); // id
+            let id = data.readUint16(); // id
             let record = EntityRecord.From(data); // record
             this.set(id,record);
         }
