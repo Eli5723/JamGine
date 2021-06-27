@@ -140,7 +140,7 @@ class Equipment {
 class Tool_Bow {
     constructor(){
         this.lastfired = 0;
-        this.fireRate = 1000;
+        this.fireRate = 500;
     }
     primary(grip){
         if (Date.now() > this.lastfired + this.fireRate){
@@ -154,7 +154,7 @@ class Tool_Bow {
     unequip(){}
     equip(){}
     update(dt){}
-    static Texture = "./box.png";
+    static Texture = "./bow.png";
 }
 
 class Tool_Flight {
@@ -245,7 +245,7 @@ class Player {
         this.y = y;
         this.width = 15;
         this.height =15;    
-        this.xsp = 64;
+        this.xsp = 500;
         this.ysp = 20;
         this.coyote =0;
         
@@ -311,9 +311,9 @@ class Player {
             this.coyote =0;
         }
 
-        if (this.x + this.xsp*dt + 16 > 1280){
+        if (this.x + this.xsp*dt + 16 > World.width){
             this.xsp = 0;
-            this.x = 1280 - 16;
+            this.x = World.width - 16;
         }
 
         if (this.x + this.xsp*dt < 0){
@@ -329,9 +329,9 @@ class Player {
 
         this.collision = 0;
         World.tileCollection.collide(this);
-        if (this.y + this.ysp*dt + 16 > 640){
+        if (this.y + this.ysp*dt + 16 > World.height){
             this.ysp = 0;
-            this.y = 640 - 16;
+            this.y = World.height - 16;
             this.collision |= DIRECTIONS.DOWN;
         } else if (this.y + this.ysp*dt < 0){
             this.ysp = 0;
@@ -377,6 +377,8 @@ class Player {
 
         this.equipmentSprite = this.grip.sprite;
         this.equipmentSprite.x = 16;
+        this.equipmentSprite.anchor.x = .5;
+        this.equipmentSprite.anchor.y = .5;
         this.equipmentSprite.scale.x = 1;
         this.equipmentSprite.scale.y = 1;
         
@@ -419,10 +421,15 @@ class Box {
 
         this.sprite.x = this.x;
         this.sprite.y = this.y;
+
+        let rot = Math.atan2(this.ysp*100,this.xsp*100);// - Math.PI*5/4;
+        this.sprite.rotation = rot ? rot : 0;
     }
 
     initGraphics(worldContainer,uiContainer){
-        this.sprite = PIXI.Sprite.from("./box.png");
+        this.sprite = PIXI.Sprite.from("./bowarrow.png");
+        this.sprite.pivot.x = 29;
+        this.sprite.pivot.y = 7;
         worldContainer.addChild(this.sprite);
     }
 }
@@ -465,6 +472,7 @@ class ClientCursor {
     }
 }
 
+// Effects
 class TileShard{
     constructor(x,y,sprite){
         this.x = x;
@@ -497,9 +505,37 @@ class TileShard{
     }
 }
 
+class Label {
+    constructor(x,y,template,keys){
+        this.x = x;
+        this.y = y;
+        this.template = template;
+        this.keys = keys;
+        this.sprite = new PIXI.Text(this.template[0],{fill:"white",align:"center"});
+        this.sprite.anchor.set(.5,0);
+    }
+
+    update(dt, World){
+        this.sprite.x=this.x;
+        this.sprite.y=this.y;
+
+        let str = this.template[0];
+        for (let i = 1; i < this.template.length; i++){
+            str += World.info.get(this.keys[i-1]);
+            str += this.template[i];
+        }
+
+        this.sprite.text = str;
+    }
+    initGraphics(worldContainer,uiContainer){
+        uiContainer.addChild(this.sprite);
+    }
+}
+
 export {
     Player,
     Box,
     ClientCursor,
-    TileShard
+    TileShard,
+    Label
 };

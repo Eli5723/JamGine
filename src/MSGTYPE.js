@@ -34,6 +34,8 @@ let MSG = {
     MAP_SET : i++,
     MAP_LOADED : i++,
 
+    INFO_SET : i++,
+
     get_key(value){
         for (let key in MSG){
             if (MSG[key] == value)

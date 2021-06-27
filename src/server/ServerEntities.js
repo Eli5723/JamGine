@@ -82,8 +82,8 @@ class Box {
     constructor(x,y,xsp,ysp,owner){
         this.x = x;
         this.y = y;
-        this.width = 12;
-        this.height = 12;
+        this.width = 8;
+        this.height = 8;
         this.xsp = xsp;
         this.ysp = ysp;
         this.owner = owner;
@@ -106,12 +106,17 @@ class Box {
 
         this.collision = 0;
         World.tileCollection.collide(this);
-        if (this.collision & DIRECTIONS.UP || this.collision & DIRECTIONS.DOWN) {
-            this.ysp = oldysp * -.95;
-        }
+        // if (this.collision & DIRECTIONS.UP || this.collision & DIRECTIONS.DOWN) {
+        //     this.ysp = oldysp * -.95;
+        // }
 
-        if (this.collision & DIRECTIONS.LEFT || this.collision & DIRECTIONS.RIGHT) {
-            this.xsp = oldxsp * -1;
+        // if (this.collision & DIRECTIONS.LEFT || this.collision & DIRECTIONS.RIGHT) {
+        //     this.xsp = oldxsp * -1;
+        // }
+
+        if (this.collision){
+            World.removeEntity(this.id);
+            World.removeTile(this.hitX, this.hitY);
         }
     }
     

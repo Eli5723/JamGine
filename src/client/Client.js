@@ -33,8 +33,11 @@ async function main(){
         antialias: false,
         resolution: 1,
         resizeTo:attach,
-        backgroundColor:0x1b3045
+        backgroundColor:0x1b3045,
+        autoStart: false
     });
+    app.render();
+    app.ticker.stop();
 
     app.view.setAttribute('tabindex', -1);
     app.view.onclick=function() {app.view.focus()};
@@ -108,11 +111,12 @@ function makeid(length) {
 
 Net.on(MSGTYPE.AUTH_BEGIN,(data)=>{
     loginForm.style.display = "block";
-    // Temporary: login with a ranodm name
-    packet.writeByte(MSGTYPE.AUTH_TOKEN);   
-    packet.writeAscii(makeid(10));
-    Net.send(packet.flush());
 });
+// setTimeout(()=>{
+//     packet.writeByte(MSGTYPE.AUTH_TOKEN);   
+//     packet.writeAscii(makeid(10));
+//     Net.send(packet.flush());
+// },1000);
 
 Net.on(MSGTYPE.AUTH_REJECT,(data)=>{
     let reason = data.readAscii();
@@ -162,13 +166,6 @@ Net.on(MSGTYPE.ENT_REM, (data)=>{
     world.removeEntity(id);
 });
 
-
-let tileCollection;
-// Net.on(MSGTYPE.MAP_SET, (data)=>{
-//     world.tileCollection = TileCollectionRendered.From(data);
-//     world.worldContainer.addChild(world.tileCollection.container);
-// });
-
 Net.on(MSGTYPE.TILE_SET,(data=>{
     let x = data.readByte();
     let y = data.readByte();
@@ -179,6 +176,7 @@ Net.on(MSGTYPE.TILE_SET,(data=>{
     if (removed){
         world.addEffect[x*16,y*16,new PIXI.Sprite(world.tileCollection.textures[removed])];
     }
+
     Assets.sounds['./sounds/place.ogg'].stop();
     Assets.sounds['./sounds/place.ogg'].play();
 }));
@@ -193,8 +191,11 @@ Net.on(MSGTYPE.TILE_REMOVE,(data=>{
         Assets.sounds['./sounds/break.ogg'].stop();
         Assets.sounds['./sounds/break.ogg'].play();
     }
-
 }));
+
+Net.on(MSGTYPE.INFO_SET,data=>{
+    world.info.decodeSet(data);
+});
 
 // Gameplay
 let world;
@@ -241,14 +242,3 @@ function rendererBlurred(){
 function onResize(){
     app.resize();
 }
-
-
-let shader = `
-asdfasddf
-
-asdf
-as
-df
-asdf
-
-`;

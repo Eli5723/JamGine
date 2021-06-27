@@ -63,84 +63,27 @@ authenticating.on(MSG.AUTH_TOKEN,(ws,data)=>{
     authenticating.remove(ws);
 
     // Send Full state to client
-    instance.addPlayer(ws);
+    let instance = toPick++ % activeInstances.length;
+    activeInstances[instance].addPlayer(ws);
 });let idIncrementer = 0;
+let toPick = 0;
 
-// // Client load success
-// Connections.loading.on(MSG.FULLSTATE_SUCCESS, (ws,data)=>{
-//     // Add client to the match
-//     console.log(`GAME | ${ws.identity.username} | entered game.`);
-//     Connections.set_group(ws,"playing");
+// Test Instance
+let activeInstances = [];
 
-//     world.createClientEntity(ws,new EntityRecord("Player",0,0));
-//     world.createClientEntity(ws,new EntityRecord("ClientCursor"));
+activeInstances.push(new ServerInstance("Test"));
+activeInstances.push(new ServerInstance("Test 2"));
 
-//     // Send tiles to player
-//     packet.writeByte(MSG.MAP_SET);
-//     world.tileCollection.serialize(packet);
-//     ws.send(packet.flush());
-// });
-
-// Connections.playing.onDisconnect = (socket)=>{
-//     // Remove entities owned by the disconnecting client
-//     console.log(`GAME | ${socket.identity.username} | clean entities`);
-//     world.networkedEntities.forEach((entity)=>{
-//         if (entity.owner == socket){
-//             world.removeEntity(entity.id);
-//         }
-//     });
-// };
-
-// Game server
-let instance = new ServerInstance("Test");
 const TIMESTEP = 16;
 function loop(){
     // Simulation
     let dt = TIMESTEP / 1000.0;
-    instance.run(dt);
+    
+    for (let i=0; i < activeInstances.length; i++){
+        activeInstances[i].run(dt);
+    }
 
     setTimeout(loop, TIMESTEP);
 }
-
-let timeout;
-instance.players.on(MSG.TILE_SET,(ws,data)=>{
-    let x = data.readByte();
-    let y = data.readByte();
-    let type = data.readByte();
-
-
-    instance.tileCollection.setTile(x,y,type);
-
-    packet.writeByte(MSG.TILE_SET);
-    packet.writeByte(x);
-    packet.writeByte(y);
-    packet.writeByte(type);
-
-    instance.players.broadcast(packet.flush());
-
-    let bounds = instance.tileCollection.bounds();
-});
-
-instance.players.on(MSG.TILE_REMOVE,(ws,data)=>{
-
-    let x = data.readByte();
-    let y = data.readByte();
-    instance.tileCollection.removeTile(x,y);
-
-
-    packet.writeByte(MSG.TILE_REMOVE);
-    packet.writeByte(x);
-    packet.writeByte(y);
-    instance.players.broadcast(packet.flush());
-});
-
-// setInterval(() => {
-//     let testRecord = new EntityRecord();
-//     testRecord[0] = "Box";
-//     testRecord[1] = Math.floor(Math.random()*500)+84;
-//     testRecord[2] = 0;
-
-//     world.createServerEntity(testRecord);
-// }, 50);
 
 loop();

@@ -4,6 +4,7 @@ import * as PIXI from 'pixi.js'
 import {EntityDictionary} from "../common/EntityDictionary.js"
 import {EntityRecord} from "../common/EntityRecord";
 import {ActionRecord} from "../common/ActionRecord"
+import {NetMap} from "../common/NetMap.js"
 import TileCollectionRendered from "../common/TileCollectionRendered.js"
 
 import TypedBuffer from '../TypedBuffer'
@@ -26,18 +27,20 @@ function BoundingBox(ent1,ent2){
 } 
 
 class ClientInstance {
-    constructor(){ClientInstance
+    constructor(){
+        this.width = 640;
+        this.height = 640;
+
         this.tileCollection = new TileCollectionRendered();
 
         this.stage = new PIXI.Container();
         this.worldContainer = new PIXI.Container();
         this.uiContainer = new PIXI.Container();
 
-
         var graphics = new PIXI.Graphics();
         graphics.beginFill(0x000000);
         graphics.lineStyle(1, 0xFFFFFF);
-        graphics.drawRect(0, 0, 1280, 640);
+        graphics.drawRect(0, 0, this.width, this.height);
         this.worldContainer.addChild(graphics);
         this.worldContainer.addChild(this.tileCollection.container);
 
@@ -56,8 +59,9 @@ class ClientInstance {
         // Local
         this.effectEntities = new Map();
         this.effectIdGenerator = new IdGenerator();
+        this.addEffect(["Label",window.innerWidth/2,0,["You have "," blocks remaining."],["budget"]]);
 
-
+        this.info = new NetMap();
     }
 
     static From(data){
@@ -69,7 +73,7 @@ class ClientInstance {
         });
 
         world.tileCollection.load(data);
-
+        world.info.load(data);
         world.consumeState(data);
 
         return world;
@@ -212,7 +216,7 @@ class ClientInstance {
         let collideables = [];
         this.networkedEntities.forEach((entity,id)=>{
             if (entity.constructor.flags.Collision)
-                collideables.push(entity)
+                collideables.push(entity);
         });
 
         for (let i = 0; i < collideables.length; i++){

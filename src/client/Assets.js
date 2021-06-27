@@ -19,6 +19,8 @@ async function load(){
         loadImage("./brick.png",1),
         loadImage("./box.png",2),
         loadImage("./arrow.png",3),
+        loadImage("./bowarrow.png",4),
+        loadImage("./bow.png",5),
     ]);
     console.log(textures);
     return;

@@ -90,11 +90,13 @@ class TileCollection {
     }
 
     5(object, column, row){
-        if (this.collideTop(object,row)) return;
-        if (this.collideLeft(object,column)) return;
-        if (this.collideRight(object,column)) return;
-        this.collideBottom(object,row);
-        
+        if (this.collideTop(object,row) ||
+        this.collideLeft(object,column) ||
+        this.collideRight(object,column) ||
+        this.collideBottom(object,row)) {
+            object.hitX = column;
+            object.hitY = row;
+        }
     }
     6(object, column, row){
         if (this.collideTop(object, row, TILESIZE * 0.5)) return;

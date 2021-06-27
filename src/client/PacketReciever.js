@@ -24,8 +24,8 @@ function getData(){
 //Read Typed data from the buffer
 function decodeTyped(){
     let res;
-
-    switch(readByte()){ // Read Type
+    let type = readByte();
+    switch(type){ // Read Type
         case 0:
             res = readInt16();
             break;

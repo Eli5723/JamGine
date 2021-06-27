@@ -1,6 +1,7 @@
 import {EntityDictionary} from "../common/EntityDictionary.js"
 import {EntityRecord} from "../common/EntityRecord.js";
 import {ActionRecord} from "../common/ActionRecord.js"
+import {NetMap} from "../common/NetMap.js"
 
 import TileCollection from "../common/TileCollection.js"
 
@@ -42,13 +43,21 @@ class ServerInstance {
 
         this.tileCollection = new TileCollection();
 
-        this.width = 1280;
+        this.width = 640;
         this.height = 640;
 
+        this.info = new NetMap();
+        this.info.set("budget",50);
+
         this.loading.on(MSGTYPE.FULLSTATE_SUCCESS,this.playerLoaded.bind(this));
-        this.players.on(MSGTYPE.STATE,this.msg_state.bind(this));
+        
+        this.players.on(MSGTYPE.STATE,this.msg_STATE.bind(this));
+        this.players.on(MSGTYPE.TILE_SET,this.msg_TILE_SET.bind(this));
+        this.players.on(MSGTYPE.TILE_REMOVE,this.msg_TILE_REMOVE.bind(this));
+
         this.players.onDisconnect = this.removePlayer.bind(this);
         console.log(`INSTANCE | ${this.name} | Created`);
+        
     }
 
     run(dt){
@@ -88,19 +97,6 @@ class ServerInstance {
         this.serverEntities.forEach((entity,id)=>{
             entity.update(dt,this);
         });
-
-        // this.clientEntities.forEach((entity,id)=>{
-        //     if (entity.x > 300) {
-        //         this.removeEntity(entity.id);
-
-        //         let record = new EntityRecord();
-        //         record[0] = "Player";
-        //         record[1] = 0;
-        //         record[2] = 0;
-
-        //         this.createClientEntity(entity.owner,record);
-        //     }
-        // });
 
         this.collisions();
     }
@@ -201,6 +197,33 @@ class ServerInstance {
 
     }
 
+    // Stage Modification
+    setTile(x,y,type){
+        packet.writeByte(MSGTYPE.TILE_SET);
+        packet.writeByte(x);
+        packet.writeByte(y);
+        packet.writeByte(type);
+        this.players.broadcast(packet.flush());
+
+        this.tileCollection.setTile(x,y,type);
+    }
+
+    removeTile(x,y){
+        let removed = this.tileCollection.removeTile(x,y);
+        if (!removed)
+            return;
+        
+        packet.writeByte(MSGTYPE.INFO_SET);
+        this.info.encodeSet(packet, "budget",this.info.get("budget")+1);
+        this.players.broadcast(packet.flush());
+
+
+        packet.writeByte(MSGTYPE.TILE_REMOVE);
+        packet.writeByte(x);
+        packet.writeByte(y);
+        this.players.broadcast(packet.flush());
+    }
+
     // Events
     ev_die(id){
         let ownerws = this.authority.get(id);
@@ -216,6 +239,7 @@ class ServerInstance {
     fullstate(buffer){
         this.edict.serialize(buffer); // Edict 
         this.tileCollection.serialize(buffer);
+        this.info.serialize(buffer);
         this.state(buffer); // Enttiy State
     }
 
@@ -241,7 +265,7 @@ class ServerInstance {
         ws.send(packet.flush());
     }
 
-    msg_state(ws,data){
+    msg_STATE(ws,data){
         let count = data.readUInt16();
         for (let i = 0; i < count; i++){
             let id = data.readUInt16();
@@ -266,6 +290,47 @@ class ServerInstance {
             this.createServerEntity(new EntityRecord("Box",x,y,xsp,ysp,owner));
         }
         
+    }
+
+    msg_TILE_SET(ws,data){
+        let x = data.readByte();
+        let y = data.readByte();
+        let type = data.readByte();
+    
+    
+        this.tileCollection.setTile(x,y,type);
+    
+        packet.writeByte(MSGTYPE.INFO_SET);
+        this.info.encodeSet(packet, "budget",this.info.get("budget")-1);
+        this.players.broadcast(packet.flush());
+
+
+        packet.writeByte(MSGTYPE.TILE_SET);
+        packet.writeByte(x);
+        packet.writeByte(y);
+        packet.writeByte(type);
+    
+        this.players.broadcast(packet.flush());
+    
+        let bounds = this.tileCollection.bounds();
+    }
+
+    msg_TILE_REMOVE(ws,data){
+        let x = data.readByte();
+        let y = data.readByte();
+        let removed = this.tileCollection.removeTile(x,y);
+        if (!removed)
+            return;
+        
+        packet.writeByte(MSGTYPE.INFO_SET);
+        this.info.encodeSet(packet, "budget",this.info.get("budget")+1);
+        this.players.broadcast(packet.flush());
+
+
+        packet.writeByte(MSGTYPE.TILE_REMOVE);
+        packet.writeByte(x);
+        packet.writeByte(y);
+        this.players.broadcast(packet.flush());
     }
 }
 

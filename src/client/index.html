@@ -8,11 +8,17 @@
 </head>
 <body>
     <div id ="loginForm">
+        <img src="./assets/logo.png"/>
         <h1> Pick a name! </h1>
         <div stlye="color:red;" id="loginFailiureReason"></div>
         <input id="usernameInput" type="text"></input>
         <button id="loginButton">Login</input>
     </div>
+
+    <div id ="teamJoinForm">
+
+    </div>
+
     <div id="attach">
     </div>
 </body>
@@ -23,6 +29,8 @@
         border: 0px;
         outline: 0px;
         padding: 0px;
+        font-family: 'Times New Roman', Times, serif;
+        font-weight: bold;
     }
 
     body {
@@ -37,13 +45,32 @@
 
     #loginForm {
         display : none;
-        width:300px;
-        height:300px;
+        padding: 1em;
         position: absolute;
         left:50%;
         top:50%;
         transform: translate(-50%,-50%);
-        background-color: antiquewhite;
+        background-color:#f0ead6;
+    }
+    
+    #loginForm > input {
+        line-height: 32px;
+        border-color: black;
+        border: solid;
+        border-width: 1px;
+        padding-left: 8px;
+        padding-right: 8px;
+        background-color:#f0ead6;
+        font-size: 28px;
+        width:80%;
+    }
+    #loginForm > button {
+        height: 32px;
+        border: solid;
+        border-color: black;
+        border-width: 1px;
+        padding-left: 8px;
+        padding-right: 8px;
     }
 
 </style>
