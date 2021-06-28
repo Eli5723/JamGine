@@ -434,6 +434,49 @@ class Box {
     }
 }
 
+class Core {
+    constructor(x,y){
+        this.x = x;
+        this.y = y;
+        this.xsp = 0;
+        this.ysp = 0;
+        this.width = 24;
+        this.height = 24;
+    }
+
+    static flags = {
+        Collision : true
+    }
+
+    serialize(buffer){
+        buffer.writeByte(4); // Size header is required
+        buffer.writeInt16(this.x);
+        buffer.writeInt16(this.y);
+    }
+
+    onCollide(world,other){
+    }
+
+    instate(data){
+        let ox = this.x;
+        let oy = this.y;
+
+        this.x = data.readInt16();
+        this.y = data.readInt16();
+        
+        this.xsp = this.x - ox;
+        this.ysp = this.y - oy;
+
+        this.sprite.x = this.x;
+        this.sprite.y = this.y;
+    }
+
+    initGraphics(worldContainer,uiContainer){
+        this.sprite = PIXI.Sprite.from("./core.png");
+        worldContainer.addChild(this.sprite);
+    }
+}
+
 class ClientCursor {
     constructor(){
         this.x = 0;
@@ -536,6 +579,7 @@ export {
     Player,
     Box,
     ClientCursor,
+    Core,
     TileShard,
     Label
 };

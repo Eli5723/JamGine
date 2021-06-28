@@ -12,9 +12,6 @@ class NetMap extends Map {
         for (let i=0; i < keyNum; i++){
             let key = data.readAscii();
             let value = data.decodeTyped();
-
-            console.log(key);
-            console.log(value);
             this.set(key, value);
         }
     }

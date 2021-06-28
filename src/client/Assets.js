@@ -13,6 +13,7 @@ async function load(){
     await Promise.all([
         loadSound("./sounds/break.ogg"),
         loadSound("./sounds/place.ogg"),
+        loadSound("./sounds/Braam.wav"),
 
         loadImage("./tiles_test.png"),
         loadImage("./cat.png",0),
@@ -21,8 +22,8 @@ async function load(){
         loadImage("./arrow.png",3),
         loadImage("./bowarrow.png",4),
         loadImage("./bow.png",5),
+        loadImage("./core.png",6),
     ]);
-    console.log(textures);
     return;
 }
 

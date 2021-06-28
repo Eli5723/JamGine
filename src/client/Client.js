@@ -54,9 +54,7 @@ async function main(){
     attach.appendChild(app.view);
     
     // Load assets
-    console.log("Loading assets!");
     await Assets.load();
-    console.log("Loaded assets!");  
 
     // Input Setup
     const keyCode = (char)=>char.toUpperCase().charCodeAt(0);
@@ -81,7 +79,7 @@ async function main(){
 }   
 
 window.onload = main;
-console.log(window.location.search);
+
 // Login Form
 let loginForm = document.getElementById("loginForm");
 let loginFailiureReason = document.getElementById("loginFailiureReason");
@@ -112,11 +110,11 @@ function makeid(length) {
 Net.on(MSGTYPE.AUTH_BEGIN,(data)=>{
     loginForm.style.display = "block";
 });
-// setTimeout(()=>{
-//     packet.writeByte(MSGTYPE.AUTH_TOKEN);   
-//     packet.writeAscii(makeid(10));
-//     Net.send(packet.flush());
-// },1000);
+setTimeout(()=>{
+    packet.writeByte(MSGTYPE.AUTH_TOKEN);   
+    packet.writeAscii(makeid(10));
+    Net.send(packet.flush());
+},1000);
 
 Net.on(MSGTYPE.AUTH_REJECT,(data)=>{
     let reason = data.readAscii();
@@ -128,7 +126,20 @@ Net.on(MSGTYPE.AUTH_SUCCESS, (data)=>{
 });
 
 Net.on(MSGTYPE.FULLSTATE, (data)=>{
+    if (world) {
+        app.stage.removeChild(world.stage);
+        Assets.sounds['./sounds/Braam.wav'].play();
+    }
+
     world = ClientInstance.From(data);
+
+    let str = "{";
+    world.tileCollection.forEach((x,y,type)=>{
+        str+=`{"x":${x},"y":${y},"type":${type}},`;
+    });
+    str+="}";
+    console.log(str);
+
     app.stage.addChild(world.stage);
     // Inform Server that the full state was processed
     packet.writeByte(MSGTYPE.FULLSTATE_SUCCESS);

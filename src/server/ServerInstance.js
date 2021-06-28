@@ -28,9 +28,8 @@ function BoundingBox(ent1,ent2){
 }
 
 class ServerInstance {
-    constructor(name){
+    constructor(name, width, height){
         this.name = name;
-        this.loading = new SocketGroup();
         this.players = new SocketGroup();
 
         this.idGen = new IdGenerator();
@@ -43,13 +42,16 @@ class ServerInstance {
 
         this.tileCollection = new TileCollection();
 
-        this.width = 640;
-        this.height = 640;
+        this.width = width;
+        this.height = height;
+
+        this.tileWidth = width/16;
+        this.tileHeight = height/16;
 
         this.info = new NetMap();
         this.info.set("budget",50);
 
-        this.loading.on(MSGTYPE.FULLSTATE_SUCCESS,this.playerLoaded.bind(this));
+        this.players.on(MSGTYPE.FULLSTATE_SUCCESS,this.playerLoaded.bind(this));
         
         this.players.on(MSGTYPE.STATE,this.msg_STATE.bind(this));
         this.players.on(MSGTYPE.TILE_SET,this.msg_TILE_SET.bind(this));
@@ -69,7 +71,7 @@ class ServerInstance {
     }
 
     addPlayer(ws){
-        this.loading.add(ws);
+        this.players.add(ws);
         packet.writeByte(MSGTYPE.FULLSTATE);
         this.fullstate(packet);
         ws.send(packet.flush());
@@ -82,11 +84,21 @@ class ServerInstance {
                 this.removeEntity(entity.id);
             }
         });
+
+        return ws;
+    }
+
+    purge(){
+        let removed = [];
+        this.players.forEach((ws)=>{
+            removed.push(ws);
+            this.removePlayer(ws);
+        })
+
+        return removed;
     }
 
     playerLoaded(ws,data){
-        this.loading.remove(ws);
-        this.players.add(ws);
         console.log(`INSTANCE | ${this.name} | Added ${ws.identity.username}`);
         this.createClientEntity(ws,new EntityRecord("Player",0,0));
         this.createClientEntity(ws,new EntityRecord("ClientCursor"));
@@ -174,7 +186,6 @@ class ServerInstance {
         packet.writeUInt16(id);
         record.serialize(packet);
         this.players.broadcastExclude(packet.getData(), ws);
-
         //Broadcast Creation to owner client
         packet.overwriteHeader(MSGTYPE.ENT_ADD_CLIENTSIDE);
         ws.send(packet.flush());
@@ -237,6 +248,12 @@ class ServerInstance {
 
     // Networking
     fullstate(buffer){
+        // Instance parameters
+        packet.writeAscii(this.name);
+        packet.writeUInt16(this.width);
+        packet.writeUInt16(this.height);
+
+        // Instance State
         this.edict.serialize(buffer); // Edict 
         this.tileCollection.serialize(buffer);
         this.info.serialize(buffer);
@@ -296,21 +313,15 @@ class ServerInstance {
         let x = data.readByte();
         let y = data.readByte();
         let type = data.readByte();
-    
-    
-        this.tileCollection.setTile(x,y,type);
+
+        if (x < 0 || y < 0|| x >= this.tileWidth || y >= this.tileHeight)
+        return;
     
         packet.writeByte(MSGTYPE.INFO_SET);
         this.info.encodeSet(packet, "budget",this.info.get("budget")-1);
         this.players.broadcast(packet.flush());
 
-
-        packet.writeByte(MSGTYPE.TILE_SET);
-        packet.writeByte(x);
-        packet.writeByte(y);
-        packet.writeByte(type);
-    
-        this.players.broadcast(packet.flush());
+        this.setTile(x,y,type);
     
         let bounds = this.tileCollection.bounds();
     }

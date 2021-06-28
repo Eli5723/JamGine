@@ -82,8 +82,8 @@ class Box {
     constructor(x,y,xsp,ysp,owner){
         this.x = x;
         this.y = y;
-        this.width = 8;
-        this.height = 8;
+        this.width = 4;
+        this.height = 4;
         this.xsp = xsp;
         this.ysp = ysp;
         this.owner = owner;
@@ -106,13 +106,6 @@ class Box {
 
         this.collision = 0;
         World.tileCollection.collide(this);
-        // if (this.collision & DIRECTIONS.UP || this.collision & DIRECTIONS.DOWN) {
-        //     this.ysp = oldysp * -.95;
-        // }
-
-        // if (this.collision & DIRECTIONS.LEFT || this.collision & DIRECTIONS.RIGHT) {
-        //     this.xsp = oldxsp * -1;
-        // }
 
         if (this.collision){
             World.removeEntity(this.id);
@@ -127,6 +120,77 @@ class Box {
     onCollide(world,other){
         if (other.type == Player && other.id != this.owner)
             world.ev_die(other.id);
+    }
+
+    serialize(buffer){
+        buffer.writeByte(4); // Size header is required
+        buffer.writeInt16(this.x);
+        buffer.writeInt16(this.y);
+    }
+
+    instate(data){
+        this.x = data.readInt16();
+        this.y = data.readInt16();
+        this.sprite.x = this.x;
+        this.sprite.y = this.y;
+    }
+}
+
+class Core {
+    constructor(x,y,xsp,ysp){
+        this.x = x;
+        this.y = y;
+        this.width = 24;
+        this.height = 24;
+        this.xsp = xsp;
+        this.ysp = ysp;
+        this.collision = 0;
+    }
+
+    update(dt,World){
+        this.ysp += dt * gravity;
+
+        this.xPrev = this.x;
+        this.yPrev = this.y;
+        this.x += this.xsp*dt;
+        this.y += this.ysp*dt;
+
+        let oldxsp = this.xsp;
+        let oldysp = this.ysp;
+
+        this.collision = 0;
+        World.tileCollection.collide(this);
+
+        if (this.x + this.xsp*dt + this.width > World.width){
+            this.xsp = 0;
+            this.x = World.width - this.width;
+        }
+
+        if (this.x + this.xsp*dt < 0){
+            this.xsp = 0;
+            this.x = 0;
+        }
+
+        if (this.y + this.ysp*dt + this.height > World.height){
+            this.ysp = 0;
+            this.y = World.height - this.height;
+        }
+
+        if (this.x + this.xsp*dt < 0){
+            this.xsp = 0;
+            this.x = 0;
+        }
+
+
+    }
+    
+    static flags ={
+        Collision : true
+    }
+
+    onCollide(world,other){
+        // if (other.type == Player && other.id != this.owner)
+        //     world.ev_die(other.id);
     }
 
     serialize(buffer){
@@ -169,4 +233,4 @@ class ClientCursor {
 }
 
 
-export {Box, Player, ClientCursor}
+export {Box, Player, ClientCursor, Core}

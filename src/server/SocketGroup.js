@@ -35,6 +35,12 @@ class SocketGroup {
         this.clear();
     }
 
+    forEach(callback){
+        for (let id in this.sockets){
+            callback(this.sockets[id]);
+        }
+    }
+
     clear(){
         for (let _id in this.sockets){
             delete this.sockets[_id];

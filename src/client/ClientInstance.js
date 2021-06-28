@@ -26,10 +26,20 @@ function BoundingBox(ent1,ent2){
     return false;
 } 
 
+class Background extends PIXI.Graphics {
+    setSize(width,height){
+        this.clear();
+        this.beginFill(0x000000);
+        this.lineStyle(1, 0xFFFFFF);
+        this.drawRect(0, 0, width, height);
+    }
+}
+
 class ClientInstance {
-    constructor(){
-        this.width = 640;
-        this.height = 640;
+    constructor(name, width, height){
+        this.name = name;
+        this.width = width;
+        this.height = height;
 
         this.tileCollection = new TileCollectionRendered();
 
@@ -37,11 +47,10 @@ class ClientInstance {
         this.worldContainer = new PIXI.Container();
         this.uiContainer = new PIXI.Container();
 
-        var graphics = new PIXI.Graphics();
-        graphics.beginFill(0x000000);
-        graphics.lineStyle(1, 0xFFFFFF);
-        graphics.drawRect(0, 0, this.width, this.height);
-        this.worldContainer.addChild(graphics);
+        this.background = new Background();
+        this.background.setSize(this.width,this.height);
+
+        this.worldContainer.addChild(this.background);
         this.worldContainer.addChild(this.tileCollection.container);
 
         this.stage.addChild(this.worldContainer);
@@ -65,7 +74,12 @@ class ClientInstance {
     }
 
     static From(data){
-        let world = new ClientInstance();
+         // Instance parameters
+        let name = data.readAscii();
+        let width = data.readUint16();
+        let height = data.readUint16();
+
+        let world = new ClientInstance(name, width, height);
         world.edict.decode(data);
 
         world.edict.forEach((record,id)=>{

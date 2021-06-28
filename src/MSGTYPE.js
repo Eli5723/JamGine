@@ -36,6 +36,8 @@ let MSG = {
 
     INFO_SET : i++,
 
+    COMBAT_BEGIN : i++,
+
     get_key(value){
         for (let key in MSG){
             if (MSG[key] == value)
