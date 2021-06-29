@@ -14,6 +14,8 @@ async function load(){
         loadSound("./sounds/break.ogg"),
         loadSound("./sounds/place.ogg"),
         loadSound("./sounds/Braam.wav"),
+        loadSound("./sounds/whack.ogg"),
+        loadSound("./sounds/clink.ogg"),
 
         loadImage("./tiles_test.png"),
         loadImage("./cat.png",0),
@@ -23,6 +25,8 @@ async function load(){
         loadImage("./bowarrow.png",4),
         loadImage("./bow.png",5),
         loadImage("./core.png",6),
+        loadImage("./dirt.png",7),
+        loadImage("./hand.png",8)
     ]);
     return;
 }

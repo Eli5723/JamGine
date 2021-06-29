@@ -177,6 +177,17 @@ Net.on(MSGTYPE.ENT_REM, (data)=>{
     world.removeEntity(id);
 });
 
+Net.on(MSGTYPE.ENT_DIE, (data)=>{
+    let id = data.readUint16();
+    let removed = world.removeEntity(id);
+    if (removed){
+        if (removed.type.name == "Player")
+            Assets.sounds["./sounds/whack.ogg"].play();
+        world.addEffect(['TileShard', removed.x, removed.y, new PIXI.Sprite(removed.sprite.texture)]);
+    }
+});
+
+
 Net.on(MSGTYPE.TILE_SET,(data=>{
     let x = data.readByte();
     let y = data.readByte();
@@ -197,7 +208,7 @@ Net.on(MSGTYPE.TILE_REMOVE,(data=>{
     let y = data.readByte();
 
     let removed = world.tileCollection.removeTile(x,y);
-    if (removed){
+    if (removed !== undefined){
         world.addEffect(['TileShard',x*16,y*16,new PIXI.Sprite(world.tileCollection.textures[removed])]);
         Assets.sounds['./sounds/break.ogg'].stop();
         Assets.sounds['./sounds/break.ogg'].play();
@@ -208,6 +219,13 @@ Net.on(MSGTYPE.INFO_SET,data=>{
     world.info.decodeSet(data);
 });
 
+Net.on(MSGTYPE.SOUND_PLAY,data=>{
+    let sound = Assets.sounds[ data.readAscii() ];
+    if (sound) {
+        sound.play();
+    }
+});
+
 // Gameplay
 let world;
 
@@ -215,6 +233,7 @@ function loop(){
     // Time
     let newTime =  Date.now();
     dt = (newTime - time) / 1000;
+    dt = Math.min(dt, 33/1000)
     time = Date.now();
 
     // Input

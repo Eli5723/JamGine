@@ -37,7 +37,7 @@ class TileCollection {
         return removed;
     }
 
-    removeTile(x,y,type){
+    removeTile(x,y){
         let removed = this.getTile(x,y);
         delete this.columns[x][y];
         if (removed)
@@ -54,42 +54,29 @@ class TileCollection {
         column = Math.floor(object.x / TILESIZE);
         row    = Math.floor(object.y / TILESIZE);
         value  = this.getTile(column, row);
-        if (value) this[value](object,column,row);
+        if (value !== undefined) this.blockCollide(object,column,row);
 
         //Top Right
         row    = Math.floor(object.y / TILESIZE);
         column = Math.floor((object.x+object.width) / TILESIZE);
         value = this.getTile(column, row);
-        if (value) this[value](object,column,row);
+        if (value !== undefined) this.blockCollide(object,column,row);
 
         //Bottom Left
         column = Math.floor((object.x) / TILESIZE);
         row    = Math.floor((object.y + object.height) / TILESIZE);
         value  = this.getTile(column, row);
-        if (value) this[value](object,column,row);
+        if (value !== undefined) this.blockCollide(object,column,row);
 
         //Bottom Right
         row    = Math.floor((object.y + object.height) / TILESIZE);
         column = Math.floor((object.x + object.width) / TILESIZE);
         
         value = this.getTile(column, row);
-        if (value) this[value](object,column,row);
+        if (value !== undefined) this.blockCollide(object,column,row);
     }
 
-    1(object, column, row){
-        this.collideTop(object,row);
-    }
-    2(object, column, row){
-        this.collideRight(object,column);
-    }
-    3(object, column, row){
-        this.collideBottom(object,row);
-    }
-    4(object, column, row){
-        this.collideLeft(object,column);
-    }
-
-    5(object, column, row){
+    blockCollide(object, column, row){
         if (this.collideTop(object,row) ||
         this.collideLeft(object,column) ||
         this.collideRight(object,column) ||
@@ -97,33 +84,6 @@ class TileCollection {
             object.hitX = column;
             object.hitY = row;
         }
-    }
-    6(object, column, row){
-        if (this.collideTop(object, row, TILESIZE * 0.5)) return;
-        if (object.y + object.height > row * TILESIZE + TILESIZE * 0.5) {
-            if (this.collideLeft(object, column)) return;
-            if (this.collideRight(object, column)) return;
-        }
-        if (this.collideBottom(object, row)) return;
-
-    }
-
-    7(object, column, row){
-        if (0)//object.collisionFlags & COLLISION.PLATFORM)
-            return;
-        this.collideTop(object, row, TILESIZE * 0.5);
-    }
-
-    8(object, column, row){
-        if (0)//object.collisionFlags & COLLISION.PLATFORM)
-            return;
-        this.collideSlopeTop(object,row,column,-1,TILESIZE);
-    }
-
-    9(object, column, row){
-        if (0)//object.collisionFlags & COLLISION.PLATFORM)
-            return;
-        this.collideSlopeTop(object,row,column,1,0);
     }
 
     collideBottom(object,row,yOff=TILESIZE){
@@ -249,6 +209,24 @@ class TileCollection {
         });
 
         return copy;
+    }
+
+    stamp(target,x,y){
+        this.forEach((tx,ty,type)=>{
+            let xRel = x + tx;
+            let yRel = y + ty; 
+
+            target.setTile(xRel,yRel,type);
+        });
+    }
+
+    stampFlipped(target,x,y,width){
+        this.forEach((tx,ty,type)=>{
+            let xRel =  x + (width - tx) - 1;
+            let yRel = y + ty; 
+
+            target.setTile(xRel,yRel,type);
+        });
     }
 
     serialize(buffer){

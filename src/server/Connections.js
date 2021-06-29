@@ -45,12 +45,6 @@ function resolveDisconnect(socket){
     socket.group.resolveDisconnect(socket);
 }
 
-// Exports
-
-let authenticating = new SocketGroup();
-let loading = new SocketGroup();
-let playing = new SocketGroup();
-
 export {
     register,
     get_socket,

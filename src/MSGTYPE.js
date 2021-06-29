@@ -20,6 +20,7 @@ let MSG = {
     STATE : i++,
 
     ENT_REM : i++,
+    ENT_DIE : i++,
     ENT_ADD_CLIENTSIDE : i++,
     ENT_ADD_SERVERSIDE : i++,
     ENT_ADD_TEMP : i++,

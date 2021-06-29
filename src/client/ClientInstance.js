@@ -139,6 +139,7 @@ class ClientInstance {
         let args = record.slice(1);
         console.log(type);
         let entity = new Entities[type](...args);
+        entity.type = Entities[type];
         entity.id = id;
         entity.world = this;
 
@@ -160,6 +161,7 @@ class ClientInstance {
         let args = record.slice(1);
 
         let entity = new Entities[type](...args);
+        entity.type = Entities[type];
         entity.id = id;
         entity.world = this;
 
@@ -180,6 +182,8 @@ class ClientInstance {
         if (entity){
             if (entity.sprite);
                 entity.sprite.parent.removeChild(entity.sprite);
+
+            return entity;
         }
     }
 

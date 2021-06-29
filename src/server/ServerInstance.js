@@ -23,7 +23,6 @@ function BoundingBox(ent1,ent2){
         ent1.y < ent2.y + ent2.height &&
         ent1.y + ent1.height > ent2.y)
     return true;
-
     return false;
 }
 
@@ -39,6 +38,11 @@ class ServerInstance {
         this.networkedEntities = new Map();
         this.serverEntities = new Map();
         this.clientEntities = new Map();
+        
+        this.entityTypes = {};
+        for (let type in Entities){
+            this.entityTypes[type] = {};
+        }
 
         this.tileCollection = new TileCollection();
 
@@ -49,7 +53,7 @@ class ServerInstance {
         this.tileHeight = height/16;
 
         this.info = new NetMap();
-        this.info.set("budget",50);
+        this.info.set("budget",10);
 
         this.players.on(MSGTYPE.FULLSTATE_SUCCESS,this.playerLoaded.bind(this));
         
@@ -100,7 +104,14 @@ class ServerInstance {
 
     playerLoaded(ws,data){
         console.log(`INSTANCE | ${this.name} | Added ${ws.identity.username}`);
-        this.createClientEntity(ws,new EntityRecord("Player",0,0));
+
+        let spawn = this.getEntityRandom("Core");
+        if (spawn) {
+            this.createClientEntity(ws,new EntityRecord("Player", spawn.x + 4, spawn.y + 4));
+        } else {
+            this.createClientEntity(ws,new EntityRecord("Player", 0,0));
+        }
+
         this.createClientEntity(ws,new EntityRecord("ClientCursor"));
     }
 
@@ -134,10 +145,27 @@ class ServerInstance {
         }
     }
 
+    obstruction(rect){
+        for (let [id, entity] of this.networkedEntities){
+            if (entity.constructor.flags.Collision){
+                if (BoundingBox(rect,entity))
+                    return true;
+            }
+        }
+
+    }
+
     outOfBounds(entity){
         if (entity.x < 0 || entity.x + entity.width > this.width || entity.y < 0 || entity.y + entity.height > this.height)
             return true;
         return false;
+    }
+
+    // Misc
+    playSound(name){
+        packet.writeByte(MSGTYPE.SOUND_PLAY);
+        packet.writeAscii(name);
+        this.players.broadcast(packet.flush());
     }
 
     // Entity Handling
@@ -153,6 +181,9 @@ class ServerInstance {
         this.serverEntities.set(id,entity);
         this.networkedEntities.set(id,entity);
 
+        // Add to type map
+        this.entityTypes[type][id] = entity;
+
         // Add record to edict
         this.edict.set(id,record);
 
@@ -161,6 +192,8 @@ class ServerInstance {
         packet.writeUInt16(id);
         record.serialize(packet);
         this.players.broadcast(packet.flush());
+
+        return entity;
     }
 
     createClientEntity(ws,record){
@@ -178,6 +211,9 @@ class ServerInstance {
         // Authorize the client to control the entity
         this.authority.set(id,ws);
 
+        // Add to type map
+        this.entityTypes[type][id] = entity;
+
         // Add record to edict
         this.edict.set(id,record);
 
@@ -189,23 +225,63 @@ class ServerInstance {
         //Broadcast Creation to owner client
         packet.overwriteHeader(MSGTYPE.ENT_ADD_CLIENTSIDE);
         ws.send(packet.flush());
+
+        return entity;
     }
 
     removeEntity(id){
         this.edict.delete(id);
         let entity = this.networkedEntities.get(id);
+        
+        if (entity){
+            // Add to type map
+            delete this.entityTypes[entity.type.name][entity.id];
 
-        this.clientEntities.delete(id);
-        this.serverEntities.delete(id);
-        this.networkedEntities.delete(id);
+            this.clientEntities.delete(id);
+            this.serverEntities.delete(id);
+            this.networkedEntities.delete(id);
 
-        packet.writeByte(MSGTYPE.ENT_REM);
-        packet.writeUInt16(id);
-        this.players.broadcast(packet.flush());
+            packet.writeByte(MSGTYPE.ENT_REM);
+            packet.writeUInt16(id);
+            this.players.broadcast(packet.flush());
+
+            return entity;
+        }
+    }
+
+    removeEntityDie(id){
+        this.edict.delete(id);
+        let entity = this.networkedEntities.get(id);
+        
+        if (entity) {
+            // Add to type map
+            delete this.entityTypes[entity.type.name][entity.id];
+
+            this.clientEntities.delete(id);
+            this.serverEntities.delete(id);
+            this.networkedEntities.delete(id);
+
+            packet.writeByte(MSGTYPE.ENT_DIE);
+            packet.writeUInt16(id);
+            this.players.broadcast(packet.flush());
+
+            return entity;
+        }
     }
 
     clientActions(){
 
+    }
+
+    getEntityType(type){
+        return this.entityTypes[type];
+    }
+
+    getEntityRandom(type){
+        let typeMap = this.entityTypes[type];
+        let keys = Object.keys(typeMap);
+
+        return typeMap[ keys[ Math.floor( keys.length * Math.random() ) ] ];
     }
 
     // Stage Modification
@@ -221,7 +297,7 @@ class ServerInstance {
 
     removeTile(x,y){
         let removed = this.tileCollection.removeTile(x,y);
-        if (!removed)
+        if (removed === undefined)
             return;
         
         packet.writeByte(MSGTYPE.INFO_SET);
@@ -238,12 +314,16 @@ class ServerInstance {
     // Events
     ev_die(id){
         let ownerws = this.authority.get(id);
-        this.removeEntity(id);
+        this.removeEntityDie(id);
 
         if (ownerws){
-            this.createClientEntity(ownerws,new EntityRecord("Player",0,0));
+            let spawn = this.getEntityRandom("Core");
+            if (spawn) {
+                this.createClientEntity(ownerws,new EntityRecord("Player", spawn.x + 4, spawn.y + 4));
+            } else {
+                this.createClientEntity(ownerws,new EntityRecord("Player", 0,0));
+            }
         }
-        
     }
 
     // Networking
@@ -299,15 +379,47 @@ class ServerInstance {
         let actionCount = data.readByte();
         for (let i = 0; i < actionCount; i++){
             let action = ActionRecord.From(data);
-            let x = action[1];
-            let y = action[2];
-            let xsp = action[3];
-            let ysp = action[4];
-            let owner = action[5];
-            this.createServerEntity(new EntityRecord("Box",x,y,xsp,ysp,owner));
+            this.performAction(action);
         }
         
     }
+
+    performAction(record){
+
+        switch (record[0]){
+            case "fire":
+            let x = record[1];
+            let y = record[2];
+            let xsp = record[3];
+            let ysp = record[4];
+            let owner = record[5];
+            this.createServerEntity(new EntityRecord("Box",x,y,xsp,ysp,owner));
+            break;
+
+            case "grab": {
+                let ent = this.networkedEntities.get(record[1]);
+                if (ent){
+                    this.networkedEntities.forEach((toGrab,id)=>{
+                        if (toGrab.constructor.flags.Grabbable){
+                            if (BoundingBox(ent,toGrab))
+                                toGrab.holder = ent;
+                        }
+                    });
+                }
+            } break;
+            case "drop": {
+                let ent = this.networkedEntities.get(record[1]);
+                if (ent){
+                    this.networkedEntities.forEach((toGrab,id)=>{
+                        if (toGrab.constructor.flags.Grabbable && toGrab.holder == ent){
+                            toGrab.holder = 0;
+                        }
+                    });
+                }
+            } break;
+        }
+    }
+
 
     msg_TILE_SET(ws,data){
         let x = data.readByte();
@@ -315,7 +427,12 @@ class ServerInstance {
         let type = data.readByte();
 
         if (x < 0 || y < 0|| x >= this.tileWidth || y >= this.tileHeight)
-        return;
+            return;
+        let existing = this.tileCollection.getTile(x,y);
+        if (existing == 6 || existing !== undefined)
+            return;
+        if (this.obstruction({x:x*16,y:y*16, width:16, height:16}))
+            return;
     
         packet.writeByte(MSGTYPE.INFO_SET);
         this.info.encodeSet(packet, "budget",this.info.get("budget")-1);
@@ -329,8 +446,14 @@ class ServerInstance {
     msg_TILE_REMOVE(ws,data){
         let x = data.readByte();
         let y = data.readByte();
+        
+        if (x < 0 || y < 0|| x >= this.tileWidth || y >= this.tileHeight)
+        return;
+        if (this.tileCollection.getTile(x,y) == 6)
+        return;
+    
         let removed = this.tileCollection.removeTile(x,y);
-        if (!removed)
+        if (removed === undefined)
             return;
         
         packet.writeByte(MSGTYPE.INFO_SET);

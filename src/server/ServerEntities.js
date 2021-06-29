@@ -108,8 +108,19 @@ class Box {
         World.tileCollection.collide(this);
 
         if (this.collision){
-            World.removeEntity(this.id);
-            World.removeTile(this.hitX, this.hitY);
+            World.removeEntityDie(this.id);
+
+            let tile = World.tileCollection.getTile(this.hitX,this.hitY);
+            if (tile < 6){
+                // World.removeTile(this.hitX, this.hitY);
+                if (tile > 1) {
+                    // World.removeTile(this.hitX, this.hitY);
+                    World.setTile(this.hitX,this.hitY, tile - 1);
+                } else {
+                    World.removeTile(this.hitX, this.hitY);
+                    console.log("removed");
+                }
+            }
         }
     }
     
@@ -118,8 +129,16 @@ class Box {
     }
 
     onCollide(world,other){
-        if (other.type == Player && other.id != this.owner)
+        if (other.type == Player && other.id != this.owner){
             world.ev_die(other.id);
+            world.removeEntity(this.id);
+        } else if (other.type == Core) {
+            world.playSound("./sounds/clink.ogg");
+            world.removeEntity(this.id);
+            other.holder = 0;
+            other.xsp += this.xsp;
+            other.ysp += -100;
+        }
     }
 
     serialize(buffer){
@@ -145,9 +164,18 @@ class Core {
         this.xsp = xsp;
         this.ysp = ysp;
         this.collision = 0;
+        this.holder;
     }
 
     update(dt,World){
+        if (this.holder){
+            this.x = this.holder.x;
+            this.y = this.holder.y - this.height/2;
+            this.xsp = this.holder.xsp;
+            this.ysp = this.holder.ysp;
+            return;
+        }
+
         this.ysp += dt * gravity;
 
         this.xPrev = this.x;
@@ -160,6 +188,8 @@ class Core {
 
         this.collision = 0;
         World.tileCollection.collide(this);
+
+        this.xsp *= 1 - (50*dt);
 
         if (this.x + this.xsp*dt + this.width > World.width){
             this.xsp = 0;
@@ -180,17 +210,21 @@ class Core {
             this.xsp = 0;
             this.x = 0;
         }
-
-
     }
     
     static flags ={
-        Collision : true
+        Collision : true,
+        Grabbable : true
     }
 
     onCollide(world,other){
-        // if (other.type == Player && other.id != this.owner)
-        //     world.ev_die(other.id);
+        if (other.type == Core && !this.holder) {
+            if (this.x > other.x+other.width/2)
+            this.x = other.x + other.width;
+            else {
+                this.x = other.x - this.width;
+            }
+        }
     }
 
     serialize(buffer){

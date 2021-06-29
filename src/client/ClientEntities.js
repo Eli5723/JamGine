@@ -62,7 +62,7 @@ class Grip {
         let currentEquip = this.equipment[this.selected];
 
         if (currentEquip){
-            currentEquip.unequip();
+            currentEquip.unequip(this);
         }
     }
 
@@ -237,6 +237,87 @@ class Tool_Block {
     static Texture = "./brick.png";
 }
 
+class Tool_Dirt {
+    constructor(){
+        this.lastfired = 0;
+        this.fireRate = 1000;
+
+        this.ghostblock = new PIXI.Sprite(Assets.getTexture("./dirt.png"));
+        this.ghostblock.alpha = .5;
+
+        this.radius = new PIXI.Graphics();  
+        this.radius.lineStyle(1,0xFFFFFF,.5);
+        this.radius.drawCircle(8, 8, 16*6);
+        // this.radius.anchor.x =.5;
+        // this.radius.anchor.y = .5;
+        this.radius.endFill();
+
+    }
+    primary(grip){
+        let tx = Math.floor(Mouse.x/16);
+        let ty = Math.floor(Mouse.y/16);
+
+        if (grip.entity.world.tileCollection.getTile(tx,ty) !== 0 && tx > -1 && ty > -1){
+            packet.writeByte(MSGTYPE.TILE_SET);
+            packet.writeByte(tx);
+            packet.writeByte(ty);
+            packet.writeByte(0);
+            
+            Net.send(packet.flush());
+        }
+    }
+    secondary(grip){
+        // let tx = Math.floor(Mouse.x/16);
+        // let ty = Math.floor(Mouse.y/16);
+
+        // if (grip.entity.world.tileCollection.getTile(tx,ty) !== undefined){
+        //     packet.writeByte(MSGTYPE.TILE_REMOVE);
+        //     packet.writeByte(tx);
+        //     packet.writeByte(ty);
+        //     Net.send(packet.flush());
+        // }
+    }
+    reload(grip){
+
+    }
+
+    unequip(grip){
+        if (this.ghostblock.parent)
+            this.ghostblock.parent.removeChild(this.ghostblock);
+        grip.entity.sprite.removeChild(this.radius);
+    }
+    equip(grip){
+        grip.entity.world.worldContainer.addChild(this.ghostblock);
+        grip.entity.sprite.addChild(this.radius);
+    }
+    update(dt){
+        this.ghostblock.x = Math.floor(Mouse.x/16)*16;
+        this.ghostblock.y = Math.floor(Mouse.y/16)*16;
+    }
+    static Texture = "./dirt.png";
+}
+
+class Tool_Hand {
+    constructor(){
+        this.lastfired = 0;
+        this.fireRate = 1000;
+    }
+    primary(grip){
+        grip.entity.world.queueAction(new ActionRecord("grab",grip.entity.id));
+    }
+    secondary(grip){
+        grip.entity.world.queueAction(new ActionRecord("drop",grip.entity.id));
+    }
+    reload(grip){}
+    unequip(grip){
+        grip.entity.world.queueAction(new ActionRecord("drop",grip.entity.id));
+    }
+    equip(grip){}
+    update(dt){}
+    static Texture = "./hand.png";
+}
+
+
 const GRAVITY = 1200;
 const DAMPEN = 4;
 class Player {
@@ -245,14 +326,16 @@ class Player {
         this.y = y;
         this.width = 15;
         this.height =15;    
-        this.xsp = 500;
-        this.ysp = 20;
+        this.xsp = 0;
+        this.ysp = -10;
         this.coyote =0;
         
         this.grip = new Grip(0,0,0,this);
         this.grip.pickup(new Tool_Block(this));
+        this.grip.pickup(new Tool_Dirt(this));
         this.grip.pickup(new Tool_Bow(this));
         this.grip.pickup(new Tool_Flight(this));
+        this.grip.pickup(new Tool_Hand(this));
         this.state = [];
     }
 
@@ -324,11 +407,16 @@ class Player {
         // Apply movement TODO: handle automatically
         this.xPrev = this.x;
         this.yPrev = this.y;
-        this.x += this.xsp * dt; World,
-        this.y += this.ysp * dt;
 
         this.collision = 0;
+
+        this.y += this.ysp * dt;
         World.tileCollection.collide(this);
+        
+        this.x += this.xsp * dt;
+        World.tileCollection.collide(this);
+
+
         if (this.y + this.ysp*dt + 16 > World.height){
             this.ysp = 0;
             this.y = World.height - 16;
@@ -544,7 +632,6 @@ class TileShard{
     }
     initGraphics(worldContainer,uiContainer){
         worldContainer.addChild(this.sprite);
-
     }
 }
 

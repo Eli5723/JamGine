@@ -49,7 +49,7 @@ class TileCollectionRendered extends TileCollection {
         }
 
         //let sprite = ;
-        if (this.spriteColumns[x][y]) {
+        if (this.spriteColumns[x][y] !== undefined) {
             this.spriteColumns[x][y].texture = this.textures[type];
         } else {
             let newSprite = new PIXI.Sprite(this.textures[type]);
