@@ -1,3 +1,5 @@
+import {EntityRecord} from "../common/EntityRecord.js"
+
 const DIRECTIONS = {
     UP : 0b0001,
     RIGHT : 0b0010,
@@ -5,6 +7,7 @@ const DIRECTIONS = {
     LEFT : 0b1000
 };
 const gravity = 1200;
+const terminalVelocity = 999;
 class Player {
     constructor(x,y){
         this.x = x;
@@ -55,11 +58,59 @@ class Player {
     }
 
     instate(data){
+        let ox = this.x;
+        let oy = this.y;
+
         this.x = data.readInt16();
         this.y = data.readInt16();
+        
+        this.xsp = this.x - ox;
+        this.ysp = this.y - oy;
+
         this.grip.instate(data);
     }
 }
+
+class Ghost {
+    constructor(x,y){
+        this.x = x;
+        this.y = y;
+        this.width = 16;
+        this.height = 16;
+        this.xsp = 0;
+        this.ysp = 0;
+    }
+
+    update(dt){
+        this.x += this.xsp*dt;
+        this.y += this.ysp*dt;
+    }
+    
+    static flags ={
+    }
+
+    onCollide(world,other){
+        //world.removeEntity(this.id);
+    }
+
+    serialize(buffer){
+        buffer.writeByte(4); // Size header is required
+        buffer.writeInt16(this.x);
+        buffer.writeInt16(this.y);
+    }
+
+    instate(data){
+        let ox = this.x;
+        let oy = this.y;
+
+        this.x = data.readInt16();
+        this.y = data.readInt16();
+        
+        this.xsp = this.x - ox;
+        this.ysp = this.y - oy;
+    }
+}
+
 
 class Grip {
     constructor(){
@@ -129,15 +180,17 @@ class Box {
     }
 
     onCollide(world,other){
-        if (other.type == Player && other.id != this.owner){
+        if (other.id == this.owner)
+            return;
+
+        if (other.type == Player){
             world.ev_die(other.id);
             world.removeEntity(this.id);
-        } else if (other.type == Core) {
+        } else if (other.type == Core || other.type == Cannon) {
             world.playSound("./sounds/clink.ogg");
             world.removeEntity(this.id);
             other.holder = 0;
             other.xsp += this.xsp;
-            other.ysp += -100;
         }
     }
 
@@ -173,23 +226,21 @@ class Core {
             this.y = this.holder.y - this.height/2;
             this.xsp = this.holder.xsp;
             this.ysp = this.holder.ysp;
+            this.collision = 0;
             return;
         }
 
         this.ysp += dt * gravity;
+        this.ysp = Math.min(this.ysp, terminalVelocity);
 
         this.xPrev = this.x;
         this.yPrev = this.y;
         this.x += this.xsp*dt;
         this.y += this.ysp*dt;
-
-        let oldxsp = this.xsp;
-        let oldysp = this.ysp;
-
+        this.xsp *= 1 - (25*dt);
+        let wasColliding = this.collision;
         this.collision = 0;
         World.tileCollection.collide(this);
-
-        this.xsp *= 1 - (50*dt);
 
         if (this.x + this.xsp*dt + this.width > World.width){
             this.xsp = 0;
@@ -202,14 +253,16 @@ class Core {
         }
 
         if (this.y + this.ysp*dt + this.height > World.height){
-            this.ysp = 0;
-            this.y = World.height - this.height;
+            World.ev_die(this.id);
         }
 
         if (this.x + this.xsp*dt < 0){
             this.xsp = 0;
             this.x = 0;
         }
+
+        if (wasColliding != this.collision)
+            World.playSound("./sounds/clink.ogg");
     }
     
     static flags ={
@@ -241,6 +294,129 @@ class Core {
     }
 }
 
+class Cannon {
+    constructor(x,y,xsp,ysp, facing = 1){
+        this.x = x;
+        this.y = y;
+        this.width = 38;
+        this.height = 21;
+        this.xsp = xsp;
+        this.ysp = ysp;
+        this.collision = 0;
+        this.holder;
+        this.facing = facing;
+
+        this.lastfired = 0;
+        this.fireRate = 200;
+    }
+
+    update(dt,World){
+        if (this.holder){
+            this.x = this.holder.x;
+            this.y = this.holder.y - this.height;
+            this.xsp = this.holder.xsp;
+            this.ysp = this.holder.ysp;
+            if (this.xsp > 0) {
+                this.facing = 1;
+            } else if (this.xsp < 0) {
+                this.facing = -1;
+            }
+
+
+            this.collision = 0;
+            return;
+        }
+
+        this.ysp += dt * gravity;
+        this.ysp = Math.min(this.ysp, terminalVelocity);
+
+        this.xPrev = this.x;
+        this.yPrev = this.y;
+        this.x += this.xsp*dt;
+        this.y += this.ysp*dt;
+
+            this.xsp *= 1 - (25*dt);
+        let wasColliding = this.collision;
+        this.collision = 0;
+        World.tileCollection.collide(this);
+
+        if (this.x + this.xsp*dt + this.width > World.width){
+            this.xsp = 0;
+            this.x = World.width - this.width;
+        }
+
+        if (this.x + this.xsp*dt < 0){
+            this.xsp = 0;
+            this.x = 0;
+        }
+
+        if (this.y + this.ysp*dt + this.height > World.height){
+            World.ev_die(this.id);
+        }
+
+        if (this.x + this.xsp*dt < 0){
+            this.xsp = 0;
+            this.x = 0;
+        }
+
+        if (wasColliding != this.collision)
+            World.playSound("./sounds/clink.ogg");
+    }
+    
+    static flags ={
+        Grabbable : true,
+        Useable : true,
+        Collision : true
+    }
+
+    use(){
+        if (Date.now() > this.lastfired + this.fireRate){
+            const power = 800;
+
+            if (this.facing == 1) {
+                this.instance.createServerEntity(new EntityRecord("Box",this.x+36,this.y+3,1200,-500,this.id));
+            } else {
+                this.instance.createServerEntity(new EntityRecord("Box",this.x,this.y+3,-1200,-500,this.id));
+            }
+            this.lastfired = Date.now();
+        }
+    }
+
+    onCollide(world,other){
+        if (other.type != Player) {
+            let diff = this.x + this.width/2 > other.x+other.width/2;
+            if (diff >0)
+                this.xsp = 200;
+            else if (diff < 0)
+                this.xsp = -200;
+            else if (diff==0) {
+                this.x-=1;
+            }
+
+            // if (this.x > other.x+other.width/2) {
+            //     this.x = other.x + other.width;
+            // } else {
+            //     this.x = other.x - this.width;
+            // }
+        }
+    }
+
+    serialize(buffer){
+        buffer.writeByte(5); // Size header is required
+        buffer.writeInt16(this.x);
+        buffer.writeInt16(this.y);
+        buffer.writeByte(this.facing);
+    }
+
+    instate(data){
+        this.x = data.readInt16();
+        this.y = data.readInt16();
+        this.facing = data.readByte();
+        this.sprite.x = this.x;
+        this.sprite.y = this.y;
+    }
+}
+
 class ClientCursor {
     constructor(){
         this.x = 0;
@@ -267,4 +443,4 @@ class ClientCursor {
 }
 
 
-export {Box, Player, ClientCursor, Core}
+export {Box, Player, ClientCursor, Core, Cannon, Ghost}

@@ -49,7 +49,6 @@ async function main(){
     app.stage.scale.x = 1;
     app.stage.scale.y = 1;
     attach.oncontextmenu = (e)=>{e.preventDefault();}
-    attach.style.cursor = "none";
     attach.onresize = onResize;
     attach.appendChild(app.view);
     
@@ -80,6 +79,7 @@ async function main(){
 
 window.onload = main;
 
+
 // Login Form
 let loginForm = document.getElementById("loginForm");
 let loginFailiureReason = document.getElementById("loginFailiureReason");
@@ -95,6 +95,13 @@ loginButton.onclick = ()=>{
         Net.send(packet.flush());
     }
 }
+
+// jquery lol
+let $ = document.getElementById.bind(document);
+$("gameMenu").onclick = ()=>{ app.view.focus();}
+$("buyCannon").onclick = ()=>{packet.writeByte(MSGTYPE.PURCHASE_ITEM);Net.send(packet.flush());}
+$("ready").onclick = ()=>{packet.writeByte(MSGTYPE.READY);Net.send(packet.flush());}
+$("unready").onclick = ()=>{packet.writeByte(MSGTYPE.UNREADY);Net.send(packet.flush());}
 
 function makeid(length) {
     var result           = '';
@@ -133,13 +140,19 @@ Net.on(MSGTYPE.FULLSTATE, (data)=>{
 
     world = ClientInstance.From(data);
 
+    buyMenu.style.display = world.combat ? "none" : "block";
+
+
+    ///////////////// Test garbage
     let str = "{";
     world.tileCollection.forEach((x,y,type)=>{
         str+=`{"x":${x},"y":${y},"type":${type}},`;
     });
     str+="}";
     console.log(str);
+    /////////////////
 
+    
     app.stage.addChild(world.stage);
     // Inform Server that the full state was processed
     packet.writeByte(MSGTYPE.FULLSTATE_SUCCESS);
@@ -181,8 +194,10 @@ Net.on(MSGTYPE.ENT_DIE, (data)=>{
     let id = data.readUint16();
     let removed = world.removeEntity(id);
     if (removed){
-        if (removed.type.name == "Player")
+        if (removed.type.name == "Player") {
             Assets.sounds["./sounds/whack.ogg"].play();
+            removed.grip.unequip();
+        }
         world.addEffect(['TileShard', removed.x, removed.y, new PIXI.Sprite(removed.sprite.texture)]);
     }
 });
@@ -260,6 +275,7 @@ function rendererFocused(){
     Keyboard.enable();
     Mouse.enable();
     Mouse.clear();
+    attach.style.cursor = "none";
 }
 
 function rendererBlurred(){
@@ -267,6 +283,7 @@ function rendererBlurred(){
     Keyboard.disable();
     Mouse.clear();
     Mouse.disable();
+    attach.style.cursor = "default";
 }
 
 function onResize(){

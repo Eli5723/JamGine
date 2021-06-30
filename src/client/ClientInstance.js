@@ -7,6 +7,8 @@ import {ActionRecord} from "../common/ActionRecord"
 import {NetMap} from "../common/NetMap.js"
 import TileCollectionRendered from "../common/TileCollectionRendered.js"
 
+import * as Assets from './Assets.js'
+
 import TypedBuffer from '../TypedBuffer'
 import MSG from '../MSGTYPE'
 import Net from './Net'
@@ -36,22 +38,28 @@ class Background extends PIXI.Graphics {
 }
 
 class ClientInstance {
-    constructor(name, width, height){
+    constructor(name, width, height, combat){
         this.name = name;
         this.width = width;
         this.height = height;
+        this.combat = combat;
 
         this.tileCollection = new TileCollectionRendered();
 
         this.stage = new PIXI.Container();
         this.worldContainer = new PIXI.Container();
+        this.worldContainer.sortableChildren=true;
         this.uiContainer = new PIXI.Container();
 
         this.background = new Background();
         this.background.setSize(this.width,this.height);
-
         this.worldContainer.addChild(this.background);
         this.worldContainer.addChild(this.tileCollection.container);
+        
+
+        this.bottom = new PIXI.TilingSprite(Assets.getTexture("./warning.png"), this.width,11);
+        this.bottom.y = this.height;
+        this.worldContainer.addChild(this.bottom);
 
         this.stage.addChild(this.worldContainer);
         this.stage.addChild(this.uiContainer);
@@ -68,7 +76,9 @@ class ClientInstance {
         // Local
         this.effectEntities = new Map();
         this.effectIdGenerator = new IdGenerator();
-        this.addEffect(["Label",window.innerWidth/2,0,["You have "," blocks remaining."],["budget"]]);
+
+        if (!this.combat)
+            this.addEffect(["Label",window.innerWidth/2,0,["You have "," dolla bill$ remaining."],["budget"]]);
 
         this.info = new NetMap();
     }
@@ -78,8 +88,10 @@ class ClientInstance {
         let name = data.readAscii();
         let width = data.readUint16();
         let height = data.readUint16();
+        let combat = data.readByte();
+        console.log("Combat: "+combat);
 
-        let world = new ClientInstance(name, width, height);
+        let world = new ClientInstance(name, width, height, combat);
         world.edict.decode(data);
 
         world.edict.forEach((record,id)=>{

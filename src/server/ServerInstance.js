@@ -17,6 +17,13 @@ import SocketGroup from "./SocketGroup.js"
 
 let packet = new TypedBuffer(50000);
 
+const DIRECTIONS = {
+    UP : 0b0001,
+    RIGHT : 0b0010,
+    DOWN : 0b00100,
+    LEFT : 0b1000
+};
+
 function BoundingBox(ent1,ent2){
     if (ent1.x < ent2.x + ent2.width &&
         ent1.x + ent1.width > ent2.x &&
@@ -27,7 +34,7 @@ function BoundingBox(ent1,ent2){
 }
 
 class ServerInstance {
-    constructor(name, width, height){
+    constructor(name, width, height, combat){
         this.name = name;
         this.players = new SocketGroup();
 
@@ -38,11 +45,13 @@ class ServerInstance {
         this.networkedEntities = new Map();
         this.serverEntities = new Map();
         this.clientEntities = new Map();
-        
+
         this.entityTypes = {};
         for (let type in Entities){
             this.entityTypes[type] = {};
         }
+
+        this.combat = combat;
 
         this.tileCollection = new TileCollection();
 
@@ -60,15 +69,20 @@ class ServerInstance {
         this.players.on(MSGTYPE.STATE,this.msg_STATE.bind(this));
         this.players.on(MSGTYPE.TILE_SET,this.msg_TILE_SET.bind(this));
         this.players.on(MSGTYPE.TILE_REMOVE,this.msg_TILE_REMOVE.bind(this));
+        this.players.on(MSGTYPE.PURCHASE_ITEM,this.msg_PURCHASE_ITEM.bind(this));
+
+        this.players.on(MSGTYPE.READY,this.msg_READY.bind(this));
+        this.players.on(MSGTYPE.UNREADY,this.msg_UNREADY.bind(this));
 
         this.players.onDisconnect = this.removePlayer.bind(this);
-        console.log(`INSTANCE | ${this.name} | Created`);
+        console.log(`INSTANCE | ${this.name} | Created | ${this.combat ? "Combat" : "Building"}`);
         
+        this.onResult = (winner, loser)=>{};
     }
 
     run(dt){
         this.update(dt);
-
+        
         packet.writeByte(MSGTYPE.STATE);
         this.state(packet);
         this.players.broadcast(packet.flush());
@@ -99,19 +113,15 @@ class ServerInstance {
             this.removePlayer(ws);
         })
 
+        this.players.clear();
+
         return removed;
     }
 
     playerLoaded(ws,data){
         console.log(`INSTANCE | ${this.name} | Added ${ws.identity.username}`);
 
-        let spawn = this.getEntityRandom("Core");
-        if (spawn) {
-            this.createClientEntity(ws,new EntityRecord("Player", spawn.x + 4, spawn.y + 4));
-        } else {
-            this.createClientEntity(ws,new EntityRecord("Player", 0,0));
-        }
-
+        this.trySpawn(ws);
         this.createClientEntity(ws,new EntityRecord("ClientCursor"));
     }
 
@@ -136,6 +146,8 @@ class ServerInstance {
                 let ent1 = collideables[i];
                 let ent2 = collideables[j];
 
+                let normalX = (ent1.x + ent1.width) - (ent2.x + ent2.width);
+                let normalY = (ent1.y + ent1.height) - (ent2.y + ent2.height);
 
                 if (BoundingBox(ent1,ent2)){
                     ent1.onCollide(this,ent2);
@@ -178,6 +190,7 @@ class ServerInstance {
         let entity = new Entities[type](...args);
         entity.type = Entities[type];
         entity.id = id;
+        entity.instance = this;
         this.serverEntities.set(id,entity);
         this.networkedEntities.set(id,entity);
 
@@ -194,6 +207,11 @@ class ServerInstance {
         this.players.broadcast(packet.flush());
 
         return entity;
+    }
+
+    createTeamEntity(team,record){
+        let ent = this.createServerEntity(record);
+        ent.team = team;
     }
 
     createClientEntity(ws,record){
@@ -277,11 +295,45 @@ class ServerInstance {
         return this.entityTypes[type];
     }
 
+    getEntityTeam(type,team){
+        for (let id in this.entityTypes[type]){
+            let ent = this.entityTypes[type][id];
+            if (ent.team == team)
+                return ent;
+        }
+    }
+
     getEntityRandom(type){
         let typeMap = this.entityTypes[type];
         let keys = Object.keys(typeMap);
 
         return typeMap[ keys[ Math.floor( keys.length * Math.random() ) ] ];
+    }
+
+    getTeamEntities(flip){
+        let teamEntities = [];
+        this.networkedEntities.forEach((ent,id)=>{
+            if (!flip) {
+                switch(ent.type){
+                    case Entities.Core:
+                        teamEntities.push(new EntityRecord("Core", ent.x,ent.y,0,0));
+                    break;
+                    case Entities.Cannon:
+                        teamEntities.push(new EntityRecord("Cannon",ent.x,ent.y,0,0));
+                    break;
+                }
+            } else {
+                switch(ent.type){
+                    case Entities.Core:
+                        teamEntities.push(new EntityRecord("Core", (this.width*2) - ent.x - ent.width,ent.y,0,0));
+                    break;
+                    case Entities.Cannon:
+                        teamEntities.push(new EntityRecord("Cannon",(this.width*2) - ent.x - ent.width,ent.y,0,0, ent.facing*-1));
+                    break;
+                }
+            }
+        });
+        return teamEntities;
     }
 
     // Stage Modification
@@ -312,16 +364,65 @@ class ServerInstance {
     }
 
     // Events
-    ev_die(id){
-        let ownerws = this.authority.get(id);
-        this.removeEntityDie(id);
-
-        if (ownerws){
+    trySpawn(ws,x = 0,y = 0){
+        if (this.combat){
+            let spawn = this.getEntityTeam("Core",ws.team);
+            if (spawn){
+                this.createClientEntity(ws ,new EntityRecord("Player", spawn.x + 4, spawn.y + 4, "Bow", "Dirt", "Hand", "Poke"));
+            } else {
+                // Create a ghost, check if there are any living players
+                this.createClientEntity(ws ,new EntityRecord("Ghost", x, y));
+                let players = this.entityTypes.Player;
+                let survivors = false;
+                let id;
+                for (id in players){
+                    if (players[id].owner.team == ws.team){
+                       survivors = true;
+                    }
+                }
+                if (survivors){
+                    console.log("There are still survivors");
+                } else {
+                    
+                    let losingTeam = ws.team;
+                    let winningTeam = players[id].owner.team; // the winning team still has a survivng player
+                    console.log(losingTeam.name + " | " + winningTeam.name);
+                    this.end(winningTeam,losingTeam);
+                }
+                
+            }
+        } else {
             let spawn = this.getEntityRandom("Core");
             if (spawn) {
-                this.createClientEntity(ownerws,new EntityRecord("Player", spawn.x + 4, spawn.y + 4));
+                this.createClientEntity(ws,new EntityRecord("Player", spawn.x + 4, spawn.y + 4, "Block","Flight","Hand","Poke","Flight","Bow"));
+                
             } else {
-                this.createClientEntity(ownerws,new EntityRecord("Player", 0,0));
+                this.createClientEntity(ws,new EntityRecord("Player", 0, 0, "Block","Flight","Hand","Poke","Flight","Bow"));
+            }
+        }
+    }
+
+    end(winner,loser){
+        this.onResult(winner,loser);
+    }
+
+    ev_die(id){
+        let ent = this.removeEntityDie(id);
+
+        if (ent){
+            if (ent.type == Entities.Player){       
+                let ownerws = this.authority.get(id);
+                this.trySpawn(ownerws,ent.x,ent.y)
+
+            } else if (ent.type == Entities.Core){
+                if (!this.combat)
+                    this.createServerEntity(new EntityRecord("Core",(this.width/2) - 12,0,0,0));
+            } else if (ent.type == Entities.Cannon){
+                if ((!this.combat)){
+                    packet.writeByte(MSGTYPE.INFO_SET);
+                    this.info.encodeSet(packet, "budget",this.info.get("budget")+10);
+                    this.players.broadcast(packet.flush());
+                }
             }
         }
     }
@@ -332,6 +433,7 @@ class ServerInstance {
         packet.writeAscii(this.name);
         packet.writeUInt16(this.width);
         packet.writeUInt16(this.height);
+        packet.writeByte(this.combat);
 
         // Instance State
         this.edict.serialize(buffer); // Edict 
@@ -385,24 +487,25 @@ class ServerInstance {
     }
 
     performAction(record){
-
         switch (record[0]){
-            case "fire":
-            let x = record[1];
-            let y = record[2];
-            let xsp = record[3];
-            let ysp = record[4];
-            let owner = record[5];
-            this.createServerEntity(new EntityRecord("Box",x,y,xsp,ysp,owner));
-            break;
+            case "fire": {
+                let x = record[1];
+                let y = record[2];
+                let xsp = record[3];
+                let ysp = record[4];
+                let owner = record[5];
+                this.createServerEntity(new EntityRecord("Box",x,y,xsp,ysp,owner));
+            } break;
 
             case "grab": {
                 let ent = this.networkedEntities.get(record[1]);
                 if (ent){
                     this.networkedEntities.forEach((toGrab,id)=>{
                         if (toGrab.constructor.flags.Grabbable){
-                            if (BoundingBox(ent,toGrab))
+                            if (BoundingBox(ent,toGrab)) {
                                 toGrab.holder = ent;
+                                return;
+                            }
                         }
                     });
                 }
@@ -417,10 +520,30 @@ class ServerInstance {
                     });
                 }
             } break;
+
+            case "use": {
+                let ent = this.networkedEntities.get(record[1]);
+                if (ent){
+                    this.networkedEntities.forEach((toUse,id)=>{
+                        if (toUse.constructor.flags.Useable){
+                            if (BoundingBox(ent,toUse))
+                                toUse.use();
+                        }
+                    });
+                }
+            } break;
+
+            case "die": {
+                this.ev_die(record[1]);
+            } break;
+
+            default:
+                console.log(`Unknown client action: ${record[0]}`);
+            break;
         }
     }
 
-
+    // Build hphase specific
     msg_TILE_SET(ws,data){
         let x = data.readByte();
         let y = data.readByte();
@@ -447,24 +570,59 @@ class ServerInstance {
         let x = data.readByte();
         let y = data.readByte();
         
-        if (x < 0 || y < 0|| x >= this.tileWidth || y >= this.tileHeight)
-        return;
-        if (this.tileCollection.getTile(x,y) == 6)
-        return;
-    
-        let removed = this.tileCollection.removeTile(x,y);
-        if (removed === undefined)
+
+        if (!this.combat) { // Build mode
+            if (x < 0 || y < 0|| x >= this.tileWidth || y >= this.tileHeight)
+            return;
+            if (this.tileCollection.getTile(x,y) == 6)
             return;
         
+            let removed = this.tileCollection.removeTile(x,y);
+            if (removed === undefined)
+                return;
+            
+            packet.writeByte(MSGTYPE.INFO_SET);
+            this.info.encodeSet(packet, "budget",this.info.get("budget")+1);
+            this.players.broadcast(packet.flush());
+
+
+            packet.writeByte(MSGTYPE.TILE_REMOVE);
+            packet.writeByte(x);
+            packet.writeByte(y);
+            this.players.broadcast(packet.flush());
+        } else {
+            if (x < 0 || y < 0|| x >= this.tileWidth || y >= this.tileHeight)
+            return;
+            let existing = this.tileCollection.getTile(x,y);
+            if (existing != 0)
+            return;
+        
+            let removed = this.tileCollection.removeTile(x,y);
+            if (removed === undefined)
+                return;
+
+            packet.writeByte(MSGTYPE.TILE_REMOVE);
+            packet.writeByte(x);
+            packet.writeByte(y);
+            this.players.broadcast(packet.flush());
+        }
+    }
+
+    msg_PURCHASE_ITEM(ws,data){
+        this.createServerEntity(new EntityRecord("Cannon",this.width/2 - 18,0,0,0));
+        this.playSound("./sounds/kaching.ogg");
+
         packet.writeByte(MSGTYPE.INFO_SET);
-        this.info.encodeSet(packet, "budget",this.info.get("budget")+1);
+        this.info.encodeSet(packet, "budget",this.info.get("budget")-10);
         this.players.broadcast(packet.flush());
+    }
 
+    msg_READY(ws,data){
+        this.readyState = true;
+    }
 
-        packet.writeByte(MSGTYPE.TILE_REMOVE);
-        packet.writeByte(x);
-        packet.writeByte(y);
-        this.players.broadcast(packet.flush());
+    msg_UNREADY(ws,data){
+        this.readyState = false;
     }
 }
 

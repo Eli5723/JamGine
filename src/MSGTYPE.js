@@ -19,6 +19,11 @@ let MSG = {
     
     STATE : i++,
 
+    READY : i++,
+    UNREADY : i++,
+
+    PURCHASE_ITEM : i++,
+
     ENT_REM : i++,
     ENT_DIE : i++,
     ENT_ADD_CLIENTSIDE : i++,

@@ -64,15 +64,15 @@ authenticating.on(MSG.AUTH_TOKEN,(ws,data)=>{
     authenticating.remove(ws);
 
     // Send Full state to client
-    let instance = toPick++ % activeInstances.length;
-    activeInstances[0].addPlayer(ws);
+    toPick = (toPick+1) % teams.length;
+    teams[toPick].addPlayer(ws);
 });let idIncrementer = 0;
 let toPick = 0;
 
 
 
 // Test Instance
-let starterBase = [{"x":0,"y":24,"type":5},{"x":0,"y":25,"type":5},{"x":1,"y":24,"type":5},{"x":1,"y":25,"type":5},{"x":2,"y":24,"type":5},{"x":2,"y":25,"type":5},{"x":3,"y":24,"type":5},{"x":3,"y":25,"type":5},{"x":4,"y":24,"type":5},{"x":4,"y":25,"type":5},{"x":5,"y":24,"type":5},{"x":5,"y":25,"type":5},{"x":6,"y":24,"type":5},{"x":6,"y":25,"type":5},{"x":7,"y":24,"type":5},{"x":7,"y":25,"type":5},{"x":8,"y":24,"type":5},{"x":8,"y":25,"type":5},{"x":9,"y":24,"type":5},{"x":9,"y":25,"type":5},{"x":10,"y":24,"type":5},{"x":10,"y":25,"type":5},{"x":11,"y":24,"type":5},{"x":11,"y":25,"type":5},{"x":12,"y":24,"type":5},{"x":12,"y":25,"type":5},{"x":13,"y":24,"type":5},{"x":13,"y":25,"type":5},{"x":14,"y":24,"type":5},{"x":14,"y":25,"type":5},{"x":15,"y":24,"type":5},{"x":15,"y":25,"type":5},{"x":16,"y":24,"type":5},{"x":16,"y":25,"type":5},{"x":17,"y":24,"type":5},{"x":17,"y":25,"type":5},{"x":18,"y":24,"type":5},{"x":18,"y":25,"type":5},{"x":19,"y":24,"type":6},{"x":19,"y":25,"type":5},{"x":20,"y":24,"type":6},{"x":20,"y":25,"type":5},{"x":21,"y":24,"type":5},{"x":21,"y":25,"type":5},{"x":22,"y":24,"type":5},{"x":22,"y":25,"type":5},{"x":23,"y":24,"type":5},{"x":23,"y":25,"type":5},{"x":24,"y":24,"type":5},{"x":24,"y":25,"type":5},{"x":25,"y":24,"type":5},{"x":25,"y":25,"type":5},{"x":26,"y":24,"type":5},{"x":26,"y":25,"type":5},{"x":27,"y":24,"type":5},{"x":27,"y":25,"type":5},{"x":28,"y":24,"type":5},{"x":28,"y":25,"type":5},{"x":29,"y":24,"type":5},{"x":29,"y":25,"type":5},{"x":30,"y":24,"type":5},{"x":30,"y":25,"type":5},{"x":31,"y":24,"type":5},{"x":31,"y":25,"type":5},{"x":32,"y":24,"type":5},{"x":32,"y":25,"type":5},{"x":33,"y":24,"type":5},{"x":33,"y":25,"type":5},{"x":34,"y":24,"type":5},{"x":34,"y":25,"type":5},{"x":35,"y":24,"type":5},{"x":35,"y":25,"type":5},{"x":36,"y":24,"type":5},{"x":36,"y":25,"type":5},{"x":37,"y":24,"type":5},{"x":37,"y":25,"type":5},{"x":38,"y":24,"type":5},{"x":38,"y":25,"type":5},{"x":39,"y":24,"type":5},{"x":39,"y":25,"type":5}];
+let starterBase = [{"x":19,"y":24,"type":6},{"x":20,"y":24,"type":6},{"x":21,"y":24,"type":5},{"x":22,"y":24,"type":5},{"x":23,"y":24,"type":5},{"x":24,"y":24,"type":5},{"x":25,"y":24,"type":5},{"x":26,"y":24,"type":5},{"x":27,"y":24,"type":5},{"x":28,"y":24,"type":5},{"x":29,"y":24,"type":5},{"x":30,"y":24,"type":5},{"x":31,"y":24,"type":5},{"x":32,"y":24,"type":5},{"x":33,"y":24,"type":5},{"x":34,"y":24,"type":5},{"x":35,"y":24,"type":5},{"x":36,"y":24,"type":5},{"x":37,"y":24,"type":5},{"x":38,"y":24,"type":5},{"x":39,"y":19,"type":5},{"x":39,"y":20,"type":5},{"x":39,"y":21,"type":5},{"x":39,"y":22,"type":5},{"x":39,"y":23,"type":5},{"x":39,"y":24,"type":5}];
 
 
 let baseTemplate = new TileCollection();
@@ -81,6 +81,13 @@ for (let i=0; i < starterBase.length; i++){
     baseTemplate.setTile(block.x,block.y,block.type);
 }
 
+function createBuildingInstance(name){
+    let instance = new ServerInstance(`${name} Home Instance`,640,640,false);
+    baseTemplate.stamp(instance.tileCollection,0,0);
+
+    instance.createServerEntity(new EntityRecord("Core",(instance.width/2) - 12,0,0,0));
+    return instance;
+}
 
 
 class Team {
@@ -90,16 +97,34 @@ class Team {
         this.name = name;
         this.size = 0;
         this.sockets = {};
-        this.baseInstance = new ServerInstance(`${this.name} Home Instance`,640,640);
-        baseTemplate.stamp(this.baseInstance.tileCollection,0,0);
-        this.id = this.constructor.idGenerator.getId();
+        this.baseInstance = createBuildingInstance(this.name);
+        this.currentInstance = this.baseInstance;
 
+        this.id = this.constructor.idGenerator.getId();
+        this.enableInstance();
         console.log(`Team | ${this.name} | Created`);
+    }
+
+    enableInstance(){
+        this.baseInstance.readyState = false;
+        enableInstance(this.baseInstance);
+    }
+
+    reset(){
+        this.baseInstance = createBuildingInstance(this.name);
     }
 
     addPlayer(socket){
         this.sockets[socket.id] = socket;
         this.size++;
+        socket.team = this;
+        this.currentInstance.addPlayer(socket);
+    }
+
+    gatherPlayers(){
+        for (let id in this.sockets){
+            this.currentInstance.addPlayer(this.sockets[id]);
+        }
     }
 
     removePlayer(socket){
@@ -110,47 +135,77 @@ class Team {
             this.size--;
     }
 
-    enableInstance(){
-        activeInstances.push(this.baseInstance);
+    setInstance(instance){
+        this.currentInstance = instance;
     }
 }
 
 let activeInstances = [];
+function enableInstance(instance){
+    activeInstances.push(instance);
+    console.log("Enabled: "+ instance.name);
+}
+
+function disableInstance(instance){
+    activeInstances = activeInstances.filter((inst)=>inst != instance);
+}
+
 
 let teams = [];
 teams.push(new Team("Team A"));
 teams.push(new Team("Team B"));
 
-activeInstances.push(teams[0].baseInstance);
-activeInstances.push(teams[1].baseInstance);
+function createCombatInstance(leftTeam, rightTeam){
+    let combatInstance = new ServerInstance("Combat 1",1280,640, true);
+    leftTeam.setInstance(combatInstance);
+    rightTeam.setInstance(combatInstance);
 
-setTimeout(()=>{
-    let left = activeInstances.pop();
-    let right = activeInstances.pop();
-    let combined = mergeInstances(left,right);
-    activeInstances.push(combined);
-},10000); 
-
-
-function mergeInstances(leftInstance, rightInstance){
-    let newInstance = new ServerInstance("Combat 1",1280,640);
+    let leftInstance = leftTeam.baseInstance;
+    let rightInstance = rightTeam.baseInstance;
 
     // Copy Maps
-    leftInstance.tileCollection.stamp(newInstance.tileCollection,0,0);
-    rightInstance.tileCollection.stampFlipped(newInstance.tileCollection,40,0,40);
+    leftInstance.tileCollection.stamp(combatInstance.tileCollection,0,0);
+    rightInstance.tileCollection.stampFlipped(combatInstance.tileCollection,40,0,40);
 
-    newInstance.createServerEntity(new EntityRecord("Core",(newInstance.width/4) - 12,0,0,0));
-    newInstance.createServerEntity(new EntityRecord("Core",(newInstance.width/4)*3 - 12,0,0,0));
+    let leftEnts = leftInstance.getTeamEntities(false);
+    let rightEnts = rightInstance.getTeamEntities(true);
+
+    leftEnts.forEach(element => {
+        let ent = combatInstance.createServerEntity(element);
+        ent.team = leftTeam;
+    
+    });
+
+    rightEnts.forEach(element =>{
+        let ent = combatInstance.createServerEntity(element);
+        ent.team = rightTeam;
+    });
 
     // Combine Players
     let players = leftInstance.purge();
     players.push(...rightInstance.purge());
 
     for (let i=0; i < players.length; i++){
-        newInstance.addPlayer(players[i]);
+        combatInstance.addPlayer(players[i]);
     }
 
-    return newInstance;
+    // Set up win condition
+    combatInstance.onResult = (winner,loser)=>{
+        enableInstance(winner.baseInstance);
+        winner.baseInstance.info.set(winner.baseInstance.info.get("buget")+ 10);
+        winner.setInstance(winner.baseInstance);
+        winner.enableInstance();
+        
+        loser.reset();
+        loser.setInstance(loser.baseInstance);
+        loser.enableInstance();
+        
+        combatInstance.purge();
+        disableInstance(combatInstance);
+        loser.gatherPlayers();
+        winner.gatherPlayers();
+    };
+    return combatInstance;
 }
 
 const TIMESTEP = 16;
@@ -160,6 +215,15 @@ function loop(){
     
     for (let i=0; i < activeInstances.length; i++){
         activeInstances[i].run(dt);
+    }
+
+    if (activeInstances.length == 2){
+        if (activeInstances[0].readyState && activeInstances[1].readyState){
+            let left = activeInstances.pop();
+            let right = activeInstances.pop();
+            let combat =createCombatInstance(teams[0],teams[1]);
+            enableInstance(combat);
+        }
     }
 
     setTimeout(loop, TIMESTEP);

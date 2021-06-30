@@ -74,6 +74,17 @@ class TileCollection {
         
         value = this.getTile(column, row);
         if (value !== undefined) this.blockCollide(object,column,row);
+
+
+        // Center Segments
+        let offset = 16;
+        while(offset <= object.width){
+            column = Math.floor((object.x + offset) / TILESIZE);
+            row    = Math.floor((object.y + object.height) / TILESIZE);
+            value  = this.getTile(column, row);
+            if (value !== undefined) this.blockCollide(object,column,row);
+            offset+= 16;
+        }
     }
 
     blockCollide(object, column, row){

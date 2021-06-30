@@ -9,6 +9,11 @@ function connect(_url){
     socket = new WebSocket(_url);
     socket.binaryType = "arraybuffer";    
     socket.onmessage = resolveEvent;
+    socket.onclose = ()=>{
+        let reload = window.confirm("Lost connection to the game server!\n Try reconnecting?");
+        if (reload)
+            location.reload();
+    }
 }
 
 function connected(){
@@ -30,7 +35,6 @@ function resolveEvent(e){
     else
         console.log(`Event "${MSGTYPE.get_key(_event)}" not implemented / registered.`);
 };
-
 
 //Send The packet
 function send(buffer){

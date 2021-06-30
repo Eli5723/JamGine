@@ -254,28 +254,32 @@ class Tool_Dirt {
 
     }
     primary(grip){
-        let tx = Math.floor(Mouse.x/16);
-        let ty = Math.floor(Mouse.y/16);
+        if (Date.now() > this.lastfired + this.fireRate){
+            let tx = Math.floor(Mouse.x/16);
+            let ty = Math.floor(Mouse.y/16);
 
-        if (grip.entity.world.tileCollection.getTile(tx,ty) !== 0 && tx > -1 && ty > -1){
-            packet.writeByte(MSGTYPE.TILE_SET);
-            packet.writeByte(tx);
-            packet.writeByte(ty);
-            packet.writeByte(0);
-            
-            Net.send(packet.flush());
+            if (grip.entity.world.tileCollection.getTile(tx,ty) !== 0 && tx > -1 && ty > -1){
+                packet.writeByte(MSGTYPE.TILE_SET);
+                packet.writeByte(tx);
+                packet.writeByte(ty);
+                packet.writeByte(0);
+                
+                Net.send(packet.flush());
+            }
         }
     }
     secondary(grip){
-        // let tx = Math.floor(Mouse.x/16);
-        // let ty = Math.floor(Mouse.y/16);
+        if (Date.now() > this.lastfired + this.fireRate){
+            let tx = Math.floor(Mouse.x/16);
+            let ty = Math.floor(Mouse.y/16);
 
-        // if (grip.entity.world.tileCollection.getTile(tx,ty) !== undefined){
-        //     packet.writeByte(MSGTYPE.TILE_REMOVE);
-        //     packet.writeByte(tx);
-        //     packet.writeByte(ty);
-        //     Net.send(packet.flush());
-        // }
+            if (grip.entity.world.tileCollection.getTile(tx,ty) !== undefined){
+                packet.writeByte(MSGTYPE.TILE_REMOVE);
+                packet.writeByte(tx);
+                packet.writeByte(ty);
+                Net.send(packet.flush());
+            }
+        }
     }
     reload(grip){
 
@@ -317,11 +321,37 @@ class Tool_Hand {
     static Texture = "./hand.png";
 }
 
+class Tool_Poke {
+    constructor(){
+        this.lastfired = 0;
+        this.fireRate = 1000;
+    }
+    primary(grip){
+        grip.entity.world.queueAction(new ActionRecord("use",grip.entity.id));
+    }
+    secondary(grip){
+    }
+    reload(grip){}
+    unequip(grip){
+    }
+    equip(grip){}
+    update(dt){}
+    static Texture = "./poke.png";
+}
+
+let Tools = {
+    Tool_Bow,
+    Tool_Flight,
+    Tool_Dirt,
+    Tool_Hand,
+    Tool_Poke,
+    Tool_Block
+};
 
 const GRAVITY = 1200;
 const DAMPEN = 4;
 class Player {
-    constructor(x,y){
+    constructor(x,y, ...tools){
         this.x = x;
         this.y = y;
         this.width = 15;
@@ -331,12 +361,9 @@ class Player {
         this.coyote =0;
         
         this.grip = new Grip(0,0,0,this);
-        this.grip.pickup(new Tool_Block(this));
-        this.grip.pickup(new Tool_Dirt(this));
-        this.grip.pickup(new Tool_Bow(this));
-        this.grip.pickup(new Tool_Flight(this));
-        this.grip.pickup(new Tool_Hand(this));
-        this.state = [];
+        for (let i = 0; i < tools.length; i++){
+            this.grip.pickup(new Tools[`Tool_${tools[i]}`](this));
+        }
     }
 
     static flags = {
@@ -371,7 +398,6 @@ class Player {
         // Movement Input
         this.coyote -= dt;
         if (Keyboard.keys.right.down && this.xsp < MAXSPEED){
-
             if (this.xsp >= 0)
                 this.xsp += ACCEL * dt
             else
@@ -418,9 +444,7 @@ class Player {
 
 
         if (this.y + this.ysp*dt + 16 > World.height){
-            this.ysp = 0;
-            this.y = World.height - 16;
-            this.collision |= DIRECTIONS.DOWN;
+            World.queueAction(new ActionRecord("die",this.id));
         } else if (this.y + this.ysp*dt < 0){
             this.ysp = 0;
             this.y = 0;
@@ -473,6 +497,95 @@ class Player {
         this.sprite.addChild(this.equipmentSprite);
     }
 }
+
+class Ghost {
+    constructor(x,y){
+        this.x = x;
+        this.y = y;
+        this.xsp = 0;
+        this.ysp = 0;
+    }
+
+    static flags = {
+    
+    }
+
+    update(dt, World, Mouse, Keyboard){
+        const ACCEL = 1200;
+        const ACCELREVERSE = 1600;
+        const MAXSPEED = 300;
+
+        // Movement Input
+        this.coyote -= dt;
+        if (Keyboard.keys.right.down && this.xsp < MAXSPEED){
+            if (this.xsp >= 0)
+                this.xsp += ACCEL * dt
+            else
+                this.xsp += ACCELREVERSE * dt;
+        } 
+        if (Keyboard.keys.left.down && this.xsp > -MAXSPEED){
+            if (this.xsp < 0)
+                this.xsp -= ACCEL * dt
+            else
+                this.xsp -= ACCELREVERSE * dt;
+        }
+
+        if (Keyboard.keys.down.down && this.ysp < MAXSPEED){
+            if (this.ysp >= 0)
+                this.ysp += ACCEL * dt
+            else
+                this.ysp += ACCELREVERSE * dt;
+        } 
+        if (Keyboard.keys.up.down && this.ysp > -MAXSPEED){
+            if (this.ysp < 0)
+                this.ysp -= ACCEL * dt
+            else
+                this.ysp -= ACCELREVERSE * dt;
+        }
+
+        if (!Keyboard.keys.right.down && !Keyboard.keys.left.down) {
+            this.xsp*= 1- (DAMPEN * dt);
+        }
+
+        if (!Keyboard.keys.up.down && !Keyboard.keys.down.down) {
+            this.ysp*= 1- (DAMPEN * dt);
+        }
+
+        this.x += this.xsp*dt;
+        this.y += this.ysp*dt;
+
+        this.sprite.parent.pivot.x = Math.floor(this.x - window.innerWidth/2);
+        this.sprite.parent.pivot.y = Math.floor(this.y - window.innerHeight/2);
+    }
+
+    serialize(buffer){
+        buffer.writeByte(4); // Size header is required
+        buffer.writeInt16(this.x);
+        buffer.writeInt16(this.y);
+    }
+
+
+    onCollide(world,other){
+    }
+
+    instate(data){
+        let ox = this.x;
+        let oy = this.y;
+        this.x = data.readInt16();
+        this.y = data.readInt16();
+        this.xsp = this.x - ox;
+        this.ysp = this.y - oy;
+        this.sprite.x = this.x;
+        this.sprite.y = this.y;
+    }
+
+    initGraphics(worldContainer,uiContainer){
+        this.sprite = PIXI.Sprite.from("./ghost.png");
+        this.sprite.alpha = .5;
+        worldContainer.addChild(this.sprite);
+    }
+}
+
 
 class Box {
     constructor(x,y){
@@ -561,7 +674,63 @@ class Core {
 
     initGraphics(worldContainer,uiContainer){
         this.sprite = PIXI.Sprite.from("./core.png");
+        this.sprite.zIndex = 10000;
         worldContainer.addChild(this.sprite);
+    }
+}
+
+class Cannon {
+    constructor(x,y){
+        this.x = x;
+        this.y = y;
+        this.xsp = 0;
+        this.ysp = 0;
+        this.width = 24;
+        this.height = 24;
+        this.facing = 1;
+    }
+
+    static flags = {
+        Collision : true
+    }
+
+    serialize(buffer){
+        buffer.writeByte(4); // Size header is required
+        buffer.writeInt16(this.x);
+        buffer.writeInt16(this.y);
+    }
+
+    onCollide(world,other){
+    }
+
+    instate(data){
+        let ox = this.x;
+        let oy = this.y;
+
+        this.x = data.readInt16();
+        this.y = data.readInt16();
+        
+        this.xsp = this.x - ox;
+        this.ysp = this.y - oy;
+
+        this.sprite.x = this.x;
+        this.sprite.y = this.y;
+
+        this.facing = data.readByte();
+        if (this.facing == 1) {
+            this.sprite.anchor.x = 0;
+            this.sprite.scale.x = 1;
+        } else {
+            this.sprite.anchor.x = 1;
+            this.sprite.scale.x = -1;
+        }
+    }
+
+    initGraphics(worldContainer,uiContainer){
+        this.sprite = PIXI.Sprite.from("./cannon.png");
+        this.sprite.zIndex = 10000;
+        worldContainer.addChild(this.sprite);
+        
     }
 }
 
@@ -662,11 +831,56 @@ class Label {
     }
 }
 
+class ResultsSequence {
+    constructor(){
+
+    }
+
+    static flags = {
+    }
+
+    update(dt, World, Mouse, Keyboard){
+        this.sprite.parent.pivot.x = Math.floor(this.World.width/2 - window.innerWidth/2);
+        this.sprite.parent.pivot.y = Math.floor(this.World.height/2 - window.innerHeight/2);
+    }
+
+    serialize(buffer){
+        buffer.writeByte(9); // Size header is required
+        buffer.writeInt16(this.x);
+        buffer.writeInt16(this.y);
+        this.grip.serialize(buffer);
+    }
+
+
+    onCollide(world,other){
+    }
+
+    instate(data){
+        let ox = this.x;
+        let oy = this.y;
+        this.x = data.readInt16();
+        this.y = data.readInt16();
+        this.xsp = this.x - ox;
+        this.ysp = this.y - oy;
+        this.sprite.x = this.x;
+        this.sprite.y = this.y;
+
+        this.grip.instate(data);
+    }
+
+    initGraphics(worldContainer,uiContainer){
+
+    }
+}
+
 export {
     Player,
     Box,
     ClientCursor,
     Core,
+    Cannon,
     TileShard,
-    Label
+    Label,
+    Ghost,
+    ResultsSequence
 };
