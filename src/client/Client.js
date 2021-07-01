@@ -142,7 +142,7 @@ Net.on(MSGTYPE.TEAM_INFO, (data)=>{
     let count = data.readByte();
     for (let i=0; i < count; i++){
         let playerDiv = document.createElement("div");
-        playerDiv.appendChild(playerIcon.cloneNode(true));
+        playerDiv.appendChild(Assets.images['cat'].cloneNode(true));
         let playerName = document.createElement("span");
         playerName.textContent = "  " + data.readAscii();
         playerDiv.appendChild(playerName);
@@ -150,6 +150,21 @@ Net.on(MSGTYPE.TEAM_INFO, (data)=>{
         $("teamPlayers").appendChild(playerDiv);
     }
 });
+
+Net.on(MSGTYPE.INCOME_STATEMENT, (data)=>{
+    $("statementItems").innerHTML = "";
+    
+    let count = data.readByte();
+    for (let i=0; i < count; i++){
+        let item = document.createElement("div");
+        item.textContent = `${data.readAscii()}:  $${data.readByte()}`;
+        $("statementItems").appendChild(item);
+    }
+
+    $("statement").style.display = "block";
+});
+$("closeStatement").onclick = ()=>{$("statement").style.display = "none"; app.view.focus()}
+
 
 Net.on(MSGTYPE.FULLSTATE, (data)=>{
     if (world) {
@@ -159,13 +174,12 @@ Net.on(MSGTYPE.FULLSTATE, (data)=>{
     world = ClientInstance.From(data);
 
     if (world.combat){
-        Assets.sounds['./sounds/bossanova.mp3'].stop();
-        Assets.sounds['./sounds/Braam.wav'].play();
-        $("teamMenu").style.display = "none";
-        $("buyMenu").style.display = "none";
+        Assets.sounds['bossanova'].stop();
+        Assets.sounds['Braam'].play();
+        $("gameMenu").style.display = "none";
     } else {
-        Assets.sounds['./sounds/bossanova.mp3'].play();
-        $("teamMenu").style.display = "block";
+        Assets.sounds['bossanova'].play();
+        $("gameMenu").style.display = "block";
         if (world.readyState){
             $("ready").style.display = "none";
             $("unready").style.display = "inline";
@@ -227,7 +241,7 @@ Net.on(MSGTYPE.ENT_DIE, (data)=>{
     let removed = world.removeEntity(id);
     if (removed){
         if (removed.type.name == "Player") {
-            Assets.sounds["./sounds/whack.ogg"].play();
+            Assets.sounds["whack"].play();
             removed.grip.unequip();
         }
         world.addEffect(['TileShard', removed.x, removed.y, new PIXI.Sprite(removed.sprite.texture)]);
@@ -246,8 +260,8 @@ Net.on(MSGTYPE.TILE_SET,(data=>{
         world.addEffect[x*16,y*16,new PIXI.Sprite(world.tileCollection.textures[removed])];
     }
 
-    Assets.sounds['./sounds/place.ogg'].stop();
-    Assets.sounds['./sounds/place.ogg'].play();
+    Assets.sounds['place'].stop();
+    Assets.sounds['place'].play();
 }));
 
 Net.on(MSGTYPE.TILE_REMOVE,(data=>{
@@ -257,8 +271,8 @@ Net.on(MSGTYPE.TILE_REMOVE,(data=>{
     let removed = world.tileCollection.removeTile(x,y);
     if (removed !== undefined){
         world.addEffect(['TileShard',x*16,y*16,new PIXI.Sprite(world.tileCollection.textures[removed])]);
-        Assets.sounds['./sounds/break.ogg'].stop();
-        Assets.sounds['./sounds/break.ogg'].play();
+        Assets.sounds['break'].stop();
+        Assets.sounds['break'].play();
     }
 }));
 
@@ -285,6 +299,11 @@ Net.on(MSGTYPE.SOUND_PLAY,data=>{
     if (sound) {
         sound.play();
     }
+});
+
+Net.on(MSGTYPE.ENT_EFFECT, data=>{
+    let record = EntityRecord.From(data);
+    world.addEffect(record);
 });
 
 // Gameplay

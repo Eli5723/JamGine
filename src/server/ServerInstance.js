@@ -181,6 +181,12 @@ class ServerInstance {
         this.players.broadcast(packet.flush());
     }
 
+    playEffect(record){
+        packet.writeByte(MSGTYPE.ENT_EFFECT);
+        record.serialize(packet);
+        this.players.broadcast(packet.flush());
+    }
+
     // Entity Handling
     createServerEntity(record){
         // Create local copy of  Entity
@@ -372,7 +378,7 @@ class ServerInstance {
         if (this.combat){
             let spawn = this.getEntityTeam("Core",ws.team);
             if (spawn){
-                this.createClientEntity(ws ,new EntityRecord("Player", spawn.x + 4, spawn.y + 4, "Bow", "Dirt", "Hand", "Poke"));
+                this.createClientEntity(ws ,new EntityRecord("Player", spawn.x + 4, spawn.y + 4, "Bow", "Dirt", "Hand", "Poke", "Pick"));
             } else {
                 // Create a ghost, check if there are any living players
                 this.createClientEntity(ws ,new EntityRecord("Ghost", x, y));
@@ -504,6 +510,11 @@ class ServerInstance {
                 this.createServerEntity(new EntityRecord("Box",x,y,xsp,ysp,owner));
             } break;
 
+            case "slash": {
+                this.playEffect(new EntityRecord("Slash",record[1], record[2], record[3]));
+
+            } break;
+
             case "grab": {
                 let ent = this.networkedEntities.get(record[1]);
                 if (ent){
@@ -538,7 +549,7 @@ class ServerInstance {
                     this.networkedEntities.forEach((toUse,id)=>{
                         if (toUse.constructor.flags.Useable){
                             if (BoundingBox(ent,toUse))
-                                toUse.use(record[2],record[3]);
+                                toUse.use(record[2],record[3],record[4]);
                         }
                     });
                 }
@@ -630,8 +641,8 @@ class ServerInstance {
             if (x < 0 || y < 0|| x >= this.tileWidth || y >= this.tileHeight)
             return;
             let existing = this.tileCollection.getTile(x,y);
-            if (existing != 0)
-            return;
+            if (existing == 6)
+                return;
         
             let removed = this.tileCollection.removeTile(x,y);
             if (removed === undefined)

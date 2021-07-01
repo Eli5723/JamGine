@@ -1,5 +1,7 @@
 import * as PIXI from 'pixi.js';
 import TypedBuffer from '../TypedBuffer.js'
+import {EntityRecord} from "../common/EntityRecord";
+
 const packet = TypedBuffer.getInstance();
 import Net from './Net.js'
 import MSGTYPE from '../MSGTYPE'
@@ -158,7 +160,7 @@ class Tool_Bow {
     unequip(){}
     equip(){}
     update(dt){}
-    static Texture = "./bow.png";
+    static Texture = "bow";
 }
 
 class Tool_Flight {
@@ -178,6 +180,8 @@ class Tool_Flight {
 
         grip.entity.xsp += (Math.cos(dir)*accel*dt/dampenFactor);
         grip.entity.ysp += -1200*dt + Math.sin(dir)*accel*dt;
+
+        grip.entity.flight = true;
     }
     secondary(grip){}
     reload(grip){}
@@ -185,7 +189,7 @@ class Tool_Flight {
     equip(){}
     update(dt,grip){
     }
-    static Texture = "./arrow.png";
+    static Texture = "arrow";
 }
 
 class Tool_Block {
@@ -194,7 +198,7 @@ class Tool_Block {
         this.fireRate = 100;
         this.selectedType = 5;
 
-        this.ghostblock = new PIXI.Sprite(Assets.getTexture("./brick.png"));
+        this.ghostblock = new PIXI.Sprite(Assets.getTexture("brick"));
         this.ghostblock.alpha = .5;
 
     }
@@ -240,27 +244,27 @@ class Tool_Block {
         this.ghostblock.y = Math.floor(Mouse.y/16)*16;
         grip.angle += Math.PI/4 * Math.max(0, Math.min(1,(Date.now() - this.lastfired)/this.fireRate)) - Math.PI/4;
     }
-    static Texture = "./brick.png";
+    static Texture = "brick";
 }
 
 class Tool_Dirt {
     constructor(){
         this.lastfired = 0;
-        this.fireRate = 1000;
+        this.fireRate = 700;
 
-        this.ghostblock = new PIXI.Sprite(Assets.getTexture("./dirt.png"));
+        this.ghostblock = new PIXI.Sprite(Assets.getTexture("dirt"));
         this.ghostblock.alpha = .5;
 
         this.radius = new PIXI.Graphics();  
         this.radius.lineStyle(1,0xFFFFFF,.5);
-        this.radius.drawCircle(8, 8, 16*6);
-        // this.radius.anchor.x =.5;
-        // this.radius.anchor.y = .5;
+        this.radius.drawCircle(8, 8, 16*7);
         this.radius.endFill();
 
     }
     primary(grip){
         if (Date.now() > this.lastfired + this.fireRate){
+            if (dist(Mouse.x - grip.x, Mouse.y - grip.y) > (16*16*7*7))
+            return
             let tx = Math.floor(Mouse.x/16);
             let ty = Math.floor(Mouse.y/16);
 
@@ -276,19 +280,6 @@ class Tool_Dirt {
         }
     }
     secondary(grip){
-        if (Date.now() > this.lastfired + this.fireRate){
-            let tx = Math.floor(Mouse.x/16);
-            let ty = Math.floor(Mouse.y/16);
-
-            if (grip.entity.world.tileCollection.getTile(tx,ty) !== undefined){
-                packet.writeByte(MSGTYPE.TILE_REMOVE);
-                packet.writeByte(tx);
-                packet.writeByte(ty);
-                Net.send(packet.flush());
-            }
-
-            this.lastfired = Date.now();
-        }
     }
     reload(grip){
 
@@ -297,11 +288,11 @@ class Tool_Dirt {
     unequip(grip){
         if (this.ghostblock.parent)
             this.ghostblock.parent.removeChild(this.ghostblock);
-        // grip.entity.sprite.removeChild(this.radius);
+        grip.entity.sprite.removeChild(this.radius);
     }
     equip(grip){
         grip.entity.world.worldContainer.addChild(this.ghostblock);
-        // grip.entity.sprite.addChild(this.radius);
+        grip.entity.sprite.addChild(this.radius);
     }
     update(dt){
         this.ghostblock.x = Math.floor(Mouse.x/16)*16;
@@ -309,27 +300,30 @@ class Tool_Dirt {
 
         this.ghostblock.alpha = (Date.now() - this.lastfired)/this.fireRate;
     }
-    static Texture = "./dirt.png";
+    static Texture = "dirt";
 }
 
 class Tool_Pick {
     constructor(){
         this.lastfired = 0;
         this.fireRate = 200;
+        this.slashRate = 500;
 
-        this.ghostblock = new PIXI.Sprite(Assets.getTexture("./dirt.png"));
+        this.ghostblock = new PIXI.Sprite(Assets.getTexture("dirt"));
         this.ghostblock.alpha = .5;
 
         this.radius = new PIXI.Graphics();  
-        this.radius.lineStyle(1,0xFFFFFF,.5);
-        this.radius.drawCircle(8, 8, 16*6);
-        // this.radius.anchor.x =.5;
-        // this.radius.anchor.y = .5;
+        this.radius.lineStyle(1,0xFFFFFF,.2);
+        this.radius.drawCircle(8, 8, 16*3);
         this.radius.endFill();
 
     }
     primary(grip){
         if (Date.now() > this.lastfired + this.fireRate){
+
+            if (dist(Mouse.x - grip.x, Mouse.y - grip.y) > (16*16*3*3))
+                return
+
             let tx = Math.floor(Mouse.x/16);
             let ty = Math.floor(Mouse.y/16);
 
@@ -341,22 +335,15 @@ class Tool_Pick {
                 packet.writeByte(ty);
                 Net.send(packet.flush());
 
-            this.lastfired = Date.now();
+                this.lastfired = Date.now();
             }
         }
     }
     secondary(grip){
-        if (Date.now() > this.lastfired + this.fireRate){
-            let tx = Math.floor(Mouse.x/16);
-            let ty = Math.floor(Mouse.y/16);
-
-            if (grip.entity.world.tileCollection.getTile(tx,ty) !== undefined){
-                packet.writeByte(MSGTYPE.TILE_REMOVE);
-                packet.writeByte(tx);
-                packet.writeByte(ty);
-                Net.send(packet.flush());
-            }
-
+        if (Date.now() > this.lastfired + this.slashRate) {
+            let angle = Math.atan2((grip.y-Mouse.y),(grip.x-Mouse.x)) + Math.PI;
+            let dist = 16;
+            grip.entity.world.queueAction(new ActionRecord("slash",grip.x + Math.cos(angle)*dist,grip.y + Math.sin(angle)*dist,angle));
             this.lastfired = Date.now();
         }
     }
@@ -365,16 +352,16 @@ class Tool_Pick {
     }
 
     unequip(grip){
-
+        this.radius.parent.removeChild(this.radius);
     }
     equip(grip){
-
+        grip.entity.sprite.addChild(this.radius);
     }
     update(dt,grip){
         grip.angle += Math.PI/2 * Math.max(0, Math.min(2,(Date.now() - this.lastfired)/this.fireRate)) - Math.PI*3/2;
 
     }
-    static Texture = "./pickaxe.png";
+    static Texture = "pickaxe";
 }
 
 class Tool_Hand {
@@ -394,7 +381,7 @@ class Tool_Hand {
     }
     equip(grip){}
     update(dt){}
-    static Texture = "./hand.png";
+    static Texture = "hand";
 }
 
 class Tool_Poke {
@@ -412,7 +399,7 @@ class Tool_Poke {
     }
     equip(grip){}
     update(dt){}
-    static Texture = "./poke.png";
+    static Texture = "poke";
 }
 
 let Tools = {
@@ -436,8 +423,9 @@ class Player {
         this.xsp = 0;
         this.ysp = -10;
         this.coyote =0;
-        
-        this.grip = new Grip(8,8,0,this);
+        this.flight = false;
+
+        this.grip = new Grip(8,0,0,this);
         for (let i = 0; i < tools.length; i++){
             this.grip.pickup(new Tools[`Tool_${tools[i]}`](this));
         }
@@ -448,7 +436,7 @@ class Player {
     }
 
     update(dt, World, Mouse, Keyboard){
-        
+        this.flight = false;
         // Actions
         if (Mouse.down){
             this.grip.primary(dt);
@@ -489,8 +477,8 @@ class Player {
             this.xsp = -250;
         }
 
-        if (!Keyboard.keys.right.down && !Keyboard.keys.left.down)
-            this.xsp*= 0;
+        if (!Keyboard.keys.right.down && !Keyboard.keys.left.down && !this.flight)
+            this.xsp = 0;
 
         this.ysp += GRAVITY*dt;
 
@@ -562,7 +550,7 @@ class Player {
     }
 
     initGraphics(worldContainer,uiContainer){
-        this.sprite = PIXI.Sprite.from("./cat.png");
+        this.sprite = new PIXI.Sprite(Assets.getTexture("cat"));
         worldContainer.addChild(this.sprite);
 
         this.equipmentSprite = this.grip.sprite;
@@ -658,7 +646,7 @@ class Ghost {
     }
 
     initGraphics(worldContainer,uiContainer){
-        this.sprite = PIXI.Sprite.from("./ghost.png");
+        this.sprite = new PIXI.Sprite(Assets.getTexture("ghost"));
         this.sprite.alpha = .5;
         worldContainer.addChild(this.sprite);
     }
@@ -706,7 +694,7 @@ class Box {
     }
 
     initGraphics(worldContainer,uiContainer){
-        this.sprite = PIXI.Sprite.from("./bowarrow.png");
+        this.sprite = new PIXI.Sprite(Assets.getTexture("bowarrow"));
         this.sprite.pivot.x = 29;
         this.sprite.pivot.y = 7;
         worldContainer.addChild(this.sprite);
@@ -751,7 +739,7 @@ class Core {
     }
 
     initGraphics(worldContainer,uiContainer){
-        this.sprite = PIXI.Sprite.from("./core.png");
+        this.sprite = new PIXI.Sprite(Assets.getTexture("core"));
         this.sprite.zIndex = 10000;
         worldContainer.addChild(this.sprite);
     }
@@ -805,7 +793,7 @@ class Cannon {
     }
 
     initGraphics(worldContainer,uiContainer){
-        this.sprite = PIXI.Sprite.from("./cannon.png");
+        this.sprite = new PIXI.Sprite(Assets.getTexture("cannon"));
         this.sprite.zIndex = 10000;
         worldContainer.addChild(this.sprite);
         
@@ -842,7 +830,7 @@ class ClientCursor {
     }
 
     initGraphics(worldContainer,uiContainer){
-        this.sprite = PIXI.Sprite.from("./cursor.png");
+        this.sprite = new PIXI.Sprite(Assets.getTexture("core"));
         this.sprite.zIndex = 55;
         worldContainer.addChild(this.sprite);
         this.sprite.scale.x = .5;
@@ -878,6 +866,34 @@ class TileShard{
             World.removeEffect(this.id);
     }
     initGraphics(worldContainer,uiContainer){
+        worldContainer.addChild(this.sprite);
+    }
+}
+
+class Slash {
+    constructor(x,y,angle){
+        this.x = x;
+        this.y = y;
+        this.angle = angle;
+        Assets.sounds["whoosh"].play();
+    }
+
+    update(dt, World){
+        this.sprite.x=this.x;
+        this.sprite.y=this.y;
+        this.sprite.alpha -= 2*dt;
+        this.sprite.rotation = this.angle + dt*4;
+
+        if (this.sprite.alpha < .5)
+            World.removeEffect(this.id);
+    }
+    initGraphics(worldContainer,uiContainer){
+        this.sprite = new PIXI.Sprite(Assets.getTexture("swoosh"));
+        this.sprite.x=this.x;
+        this.sprite.y=this.y;
+        this.sprite.anchor.x = 0;
+        this.sprite.anchor.y = .5;
+        this.sprite.direction = this.angle;
         worldContainer.addChild(this.sprite);
     }
 }
@@ -960,5 +976,6 @@ export {
     TileShard,
     Label,
     Ghost,
-    ResultsSequence
+    ResultsSequence,
+    Slash,
 };

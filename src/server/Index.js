@@ -72,7 +72,7 @@ let toPick = 0;
 
 
 // Test Instance
-let starterBase = [{"x":19,"y":24,"type":6},{"x":20,"y":24,"type":6},{"x":21,"y":24,"type":5},{"x":22,"y":24,"type":5},{"x":23,"y":24,"type":5},{"x":24,"y":24,"type":5},{"x":25,"y":24,"type":5},{"x":26,"y":24,"type":5},{"x":27,"y":24,"type":5},{"x":28,"y":24,"type":5},{"x":29,"y":24,"type":5},{"x":30,"y":24,"type":5},{"x":31,"y":24,"type":5},{"x":32,"y":24,"type":5},{"x":33,"y":24,"type":5},{"x":34,"y":24,"type":5},{"x":35,"y":24,"type":5},{"x":36,"y":24,"type":5},{"x":37,"y":24,"type":5},{"x":38,"y":24,"type":5},{"x":39,"y":19,"type":5},{"x":39,"y":20,"type":5},{"x":39,"y":21,"type":5},{"x":39,"y":22,"type":5},{"x":39,"y":23,"type":5},{"x":39,"y":24,"type":5}];
+let starterBase = [{"x":0,"y":24,"type":5},{"x":1,"y":24,"type":5},{"x":2,"y":24,"type":5},{"x":3,"y":24,"type":5},{"x":4,"y":24,"type":5},{"x":5,"y":24,"type":5},{"x":6,"y":24,"type":5},{"x":7,"y":24,"type":5},{"x":8,"y":24,"type":5},{"x":9,"y":24,"type":5},{"x":10,"y":24,"type":5},{"x":11,"y":24,"type":5},{"x":12,"y":24,"type":5},{"x":13,"y":24,"type":5},{"x":14,"y":24,"type":5},{"x":15,"y":24,"type":5},{"x":16,"y":24,"type":5},{"x":17,"y":24,"type":5},{"x":18,"y":24,"type":5},{"x":19,"y":24,"type":6},{"x":20,"y":24,"type":6},{"x":21,"y":24,"type":5},{"x":22,"y":24,"type":5},{"x":23,"y":24,"type":5},{"x":24,"y":24,"type":5},{"x":25,"y":24,"type":5},{"x":26,"y":24,"type":5},{"x":27,"y":24,"type":5},{"x":28,"y":24,"type":5},{"x":29,"y":24,"type":5},{"x":30,"y":24,"type":5},{"x":31,"y":24,"type":5},{"x":32,"y":24,"type":5},{"x":33,"y":24,"type":5},{"x":34,"y":24,"type":5},{"x":35,"y":24,"type":5},{"x":36,"y":24,"type":5},{"x":37,"y":24,"type":5},{"x":38,"y":24,"type":5},{"x":39,"y":24,"type":5}];
 
 
 let baseTemplate = new TileCollection();
@@ -233,7 +233,7 @@ function createCombatInstance(leftTeam, rightTeam){
         winner.baseInstance.grantDolla(20);
         winner.setInstance(winner.baseInstance);
         winner.enableInstance();
-        
+
         loser.reset();
         loser.setInstance(loser.baseInstance);
         loser.enableInstance();
@@ -242,6 +242,12 @@ function createCombatInstance(leftTeam, rightTeam){
         disableInstance(combatInstance);
         loser.gatherPlayers();
         winner.gatherPlayers();
+
+        packet.writeByte(MSGTYPE.INCOME_STATEMENT);
+        packet.writeByte(1);
+        packet.writeAscii("Victory");
+        packet.writeByte(20);
+        winner.broadcast(packet.flush());
     };
     return combatInstance;
 }

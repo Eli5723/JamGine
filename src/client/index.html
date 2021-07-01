@@ -15,22 +15,32 @@
         <button id="loginButton">Login</input>
     </div>
 
-    <div id = "gameMenu">
-        <div id ="teamMenu" class="startHidden">
-            <div>Your Team: <span id="teamName"></span></div>
+    <div id = "gameMenu" class="startHidden">
+        <div id ="teamMenu" class="card">
+            <h1><span id="teamName"></span></h1>
             <div id="teamPlayers">
                 
             </div>
             <button id="ready" class="startHidden">Ready Up</button>
             <button id="unready" class="startHidden">Unready</button>
+            <br>
         </div>
     
-        <div id="buyMenu" class="startHidden">
-            <div>Buy Items</div>
-            <button id="buyCannon">Buy Cannon</button>
+        <div id="buyMenu" class="card">
+            <h1>Buy Items</h1>
+            <button id="buyCannon">Cannon............$30</button>
+            <button id="buySlingshot">Slingshot..........$30</button>
+            <br>
         </div>
     </div>
 
+
+    <div id="statement" class="card startHidden center">
+        <h1><u>Revenue</u></h1>
+        <div id="statementItems"></div>
+        <br>
+        <button id="closeStatement">Close Statement</button>
+    </div>
 
 
     <div id="attach">
@@ -60,15 +70,23 @@
 
     .card {
         background-color:#f0ead6;
+        border-color: black;
+        border-width: 1px;
+        margin-bottom: 1px;
+        padding: 1em;
         color:black;
+    }
+
+    .card > button {
+        border: solid;
+        border-color: black;
+        border-width: 1px;
+        width: calc(100%);
+
     }
 
     .startHidden {
         display:none;
-    }
-
-    #teamMenu {
-        color:white;
     }
 
     #gameMenu{
@@ -87,6 +105,13 @@
         background-color:#f0ead6;
     }
     
+    .center {
+        position: absolute;
+        left:50%;
+        top:50%;
+        transform: translate(-50%,-50%);
+    }
+
     #loginForm > input {
         line-height: 32px;
         border-color: black;

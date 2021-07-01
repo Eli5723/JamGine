@@ -1,7 +1,7 @@
 import TileCollection from './TileCollection.js'
 import * as PIXI from 'pixi.js'
 
-import {images} from '../client/Assets.js'
+import * as Assets from '../client/Assets.js'
 
 function split(atlas,size){
     var i;
@@ -31,7 +31,7 @@ class TileCollectionRendered extends TileCollection {
         super();
         this.container = new PIXI.Container();
         this.spriteColumns = {};
-        this.tilesetTexture = PIXI.Texture.from(images["./tiles_test.png"]);
+        this.tilesetTexture = Assets.getTexture("tiles_test");
         this.textures = split(this.tilesetTexture,16);
     }
 

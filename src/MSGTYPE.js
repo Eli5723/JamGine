@@ -30,12 +30,15 @@ let MSG = {
     ENT_ADD_SERVERSIDE : i++,
     ENT_ADD_TEMP : i++,
 
+    ENT_EFFECT : i++,
+
     REMOVE_ENT : i++,
 
     SOUND_PLAY : i++,
 
     TEAM_INFO : i++,
-
+    INCOME_STATEMENT : i++,
+    
     TILE_SET : i++,
     TILE_REMOVE : i++,
 
