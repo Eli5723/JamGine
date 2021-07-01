@@ -6,8 +6,9 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "production": "parcel build ./src/client/index.html",
-    "development": "parcel ./src/client/index.html"
+    "production": "parcel build ./src/client/index.html --no-minify --no-cache && cp -R ./assetsrc/* ./dist",
+    "development": "parcel ./src/client/index.html",
+    "run" : ""
   },
   "browserslist": [
     "last 2 Chrome versions"

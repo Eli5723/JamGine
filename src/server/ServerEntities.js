@@ -189,7 +189,7 @@ class Box {
             world.ev_die(other.id);
             world.removeEntity(this.id);
         } else if (other.type == Core || other.type == Cannon) {
-            world.playSound("./sounds/clink.ogg");
+            world.playSound("clink");
             world.removeEntity(this.id);
             other.holder = 0;
             other.xsp += this.xsp;
@@ -266,7 +266,7 @@ class Core {
         }
 
         if (wasColliding != this.collision)
-            World.playSound("./sounds/clink.ogg");
+            World.playSound("clink");
     }
     
     static flags ={
@@ -306,7 +306,7 @@ class Core {
             } else {
                 this.xsp += power;
             }
-            this.instance.playSound("./sounds/clink.ogg");
+            this.instance.playSound("clink");
             this.lastUsed = Date.now();
         }
     }
@@ -378,7 +378,7 @@ class Cannon {
         }
 
         if (wasColliding != this.collision)
-            World.playSound("./sounds/clink.ogg");
+            World.playSound("clink");
     }
     
     static flags ={
@@ -504,7 +504,7 @@ class Slingshot {
         }
 
         if (wasColliding != this.collision)
-            World.playSound("./sounds/clink.ogg");
+            World.playSound("clink");
     }
     
     static flags ={

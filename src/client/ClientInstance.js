@@ -59,7 +59,7 @@ class ClientInstance {
         this.worldContainer.addChild(this.tileCollection.container);
        
 
-        this.bottom = new PIXI.TilingSprite(Assets.getTexture("./warning.png"), this.width,11);
+        this.bottom = new PIXI.TilingSprite(Assets.getTexture("warning"), this.width,11);
         this.bottom.y = this.height;
         this.worldContainer.addChild(this.bottom);
 
@@ -82,7 +82,7 @@ class ClientInstance {
         if (!this.combat) {
             this.addEffect(["Label",window.innerWidth/2,0,["You have "," dolla bill$ remaining."],["budget"]]);
 
-            let fightSign = new PIXI.Sprite(Assets.getTexture("./fight.png"));
+            let fightSign = new PIXI.Sprite(Assets.getTexture("fight"));
             fightSign.x = width;
             fightSign.y = height/2 -80;
             this.worldContainer.addChild(fightSign);

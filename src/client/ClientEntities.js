@@ -2,7 +2,6 @@ import * as PIXI from 'pixi.js';
 import TypedBuffer from '../TypedBuffer.js'
 import {EntityRecord} from "../common/EntityRecord";
 
-const packet = TypedBuffer.getInstance();
 import Net from './Net.js'
 import MSGTYPE from '../MSGTYPE'
 import * as Assets from './Assets.js'
@@ -10,7 +9,7 @@ console.log(Assets);
 import Mouse from "./Mouse.js"
 
 import {ActionRecord} from '../common/ActionRecord.js'
-
+const packet = TypedBuffer.getInstance();
 const DIRECTIONS = {
     UP : 0b0001,
     RIGHT : 0b0010,
@@ -830,7 +829,7 @@ class ClientCursor {
     }
 
     initGraphics(worldContainer,uiContainer){
-        this.sprite = new PIXI.Sprite(Assets.getTexture("core"));
+        this.sprite = new PIXI.Sprite(Assets.getTexture("cursor"));
         this.sprite.zIndex = 55;
         worldContainer.addChild(this.sprite);
         this.sprite.scale.x = .5;

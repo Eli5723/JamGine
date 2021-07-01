@@ -195,12 +195,16 @@ teams.push(new Team("Team A"));
 teams.push(new Team("Team B"));
 
 function createCombatInstance(leftTeam, rightTeam){
+    
     let combatInstance = new ServerInstance("Combat 1",1280,640, true);
     leftTeam.setInstance(combatInstance);
     rightTeam.setInstance(combatInstance);
 
     let leftInstance = leftTeam.baseInstance;
     let rightInstance = rightTeam.baseInstance;
+    disableInstance(leftInstance);
+    disableInstance(rightInstance);
+
 
     // Copy Maps
     leftInstance.tileCollection.stamp(combatInstance.tileCollection,0,0);
@@ -265,8 +269,6 @@ function loop(){
     // Matchmaking
     if (activeInstances.length == 2){
         if (activeInstances[0].readyState && activeInstances[1].readyState){
-            let left = activeInstances.pop();
-            let right = activeInstances.pop();
             let combat =createCombatInstance(teams[0],teams[1]);
             enableInstance(combat);
         }

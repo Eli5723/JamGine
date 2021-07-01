@@ -26,6 +26,7 @@ async function load(){
         loadSound("bossanova.mp3"),
         loadSound("whoosh.ogg"),
 
+        loadImage("cursor.png"),
         loadImage("tiles_test.png"),
         loadImage("cat.png",0),
         loadImage("brick.png",1),

@@ -576,7 +576,6 @@ class ServerInstance {
         this.readyState = false;
         packet.writeByte(MSGTYPE.UNREADY);
         this.players.broadcast(packet.flush());
-        console.log("unready");
     }
 
     spendDolla(value){
@@ -657,7 +656,7 @@ class ServerInstance {
 
     msg_PURCHASE_ITEM(ws,data){
         this.createServerEntity(new EntityRecord("Cannon",this.width/2 - 18,0,0,0));
-        this.playSound("./sounds/kaching.ogg");
+        this.playSound("kaching");
 
         packet.writeByte(MSGTYPE.INFO_SET);
         this.info.encodeSet(packet, "budget",this.info.get("budget")-10);
