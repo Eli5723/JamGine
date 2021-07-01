@@ -117,11 +117,11 @@ function makeid(length) {
 Net.on(MSGTYPE.AUTH_BEGIN,(data)=>{
     loginForm.style.display = "block";
 });
-setTimeout(()=>{
-    packet.writeByte(MSGTYPE.AUTH_TOKEN);   
-    packet.writeAscii(makeid(10));
-    Net.send(packet.flush());
-},1000);
+// setTimeout(()=>{
+//     packet.writeByte(MSGTYPE.AUTH_TOKEN);   
+//     packet.writeAscii(makeid(10));
+//     Net.send(packet.flush());
+// },1000);
 
 Net.on(MSGTYPE.AUTH_REJECT,(data)=>{
     let reason = data.readAscii();
@@ -132,16 +132,48 @@ Net.on(MSGTYPE.AUTH_SUCCESS, (data)=>{
     loginForm.style.display = "none";
 });
 
+
+let playerIcon = document.createElement("img");
+playerIcon.src = "./cat.png";
+Net.on(MSGTYPE.TEAM_INFO, (data)=>{
+    $("teamName").textContent = data.readAscii();
+    $("teamPlayers").innerHTML = "";
+    
+    let count = data.readByte();
+    for (let i=0; i < count; i++){
+        let playerDiv = document.createElement("div");
+        playerDiv.appendChild(playerIcon.cloneNode(true));
+        let playerName = document.createElement("span");
+        playerName.textContent = "  " + data.readAscii();
+        playerDiv.appendChild(playerName);
+
+        $("teamPlayers").appendChild(playerDiv);
+    }
+});
+
 Net.on(MSGTYPE.FULLSTATE, (data)=>{
     if (world) {
         app.stage.removeChild(world.stage);
-        Assets.sounds['./sounds/Braam.wav'].play();
     }
 
     world = ClientInstance.From(data);
 
-    buyMenu.style.display = world.combat ? "none" : "block";
-
+    if (world.combat){
+        Assets.sounds['./sounds/bossanova.mp3'].stop();
+        Assets.sounds['./sounds/Braam.wav'].play();
+        $("teamMenu").style.display = "none";
+        $("buyMenu").style.display = "none";
+    } else {
+        Assets.sounds['./sounds/bossanova.mp3'].play();
+        $("teamMenu").style.display = "block";
+        if (world.readyState){
+            $("ready").style.display = "none";
+            $("unready").style.display = "inline";
+        } else {
+            $("ready").style.display = "inline";
+            $("unready").style.display = "none";
+        }
+    }
 
     ///////////////// Test garbage
     let str = "{";
@@ -232,6 +264,20 @@ Net.on(MSGTYPE.TILE_REMOVE,(data=>{
 
 Net.on(MSGTYPE.INFO_SET,data=>{
     world.info.decodeSet(data);
+});
+
+Net.on(MSGTYPE.READY,data=>{
+    console.log("Ready!");
+    world.readyState = 1;
+    $("ready").style.display = "none";
+    $("unready").style.display = "inline";
+});
+
+Net.on(MSGTYPE.UNREADY,data=>{
+    console.log("Not ready!");
+    world.readyState = 0;
+    $("ready").style.display = "inline";
+    $("unready").style.display = "none";
 });
 
 Net.on(MSGTYPE.SOUND_PLAY,data=>{

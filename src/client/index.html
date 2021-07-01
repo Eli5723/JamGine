@@ -16,23 +16,26 @@
     </div>
 
     <div id = "gameMenu">
-
-
-        <div id ="teamJoinForm">
-            <div>Your Team:</div> 
-            <button id="leaveTeam">Leave Team</button>
-            <button id="ready">Ready Up</button>
-            <button id="unready">Unready</button>
+        <div id ="teamMenu" class="startHidden">
+            <div>Your Team: <span id="teamName"></span></div>
+            <div id="teamPlayers">
+                
+            </div>
+            <button id="ready" class="startHidden">Ready Up</button>
+            <button id="unready" class="startHidden">Unready</button>
         </div>
     
-        <div id="buyMenu">
+        <div id="buyMenu" class="startHidden">
             <div>Buy Items</div>
             <button id="buyCannon">Buy Cannon</button>
         </div>
     </div>
 
+
+
     <div id="attach">
     </div>
+
 </body>
 
 <style>
@@ -55,13 +58,23 @@
         height:100%;
     }
 
-    #teamJoinForm {
+    .card {
+        background-color:#f0ead6;
+        color:black;
+    }
+
+    .startHidden {
+        display:none;
+    }
+
+    #teamMenu {
         color:white;
     }
 
     #gameMenu{
         color:white;
         position: absolute;
+        height:0px;
     }
 
     #loginForm {

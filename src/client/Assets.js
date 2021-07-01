@@ -17,6 +17,7 @@ async function load(){
         loadSound("./sounds/whack.ogg"),
         loadSound("./sounds/clink.ogg"),
         loadSound("./sounds/kaching.ogg"),
+        loadSound("./sounds/bossanova.mp3"),
 
         loadImage("./tiles_test.png"),
         loadImage("./cat.png",0),
@@ -31,7 +32,9 @@ async function load(){
         loadImage("./poke.png",9),
         loadImage("./cannon.png",10),
         loadImage("./warning.png",11),
-        loadImage("./ghost.png",11)
+        loadImage("./ghost.png",11),
+        loadImage("./pickaxe.png",12),
+        loadImage("./fight.png",13)
     ]);
     return;
 }

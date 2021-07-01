@@ -26,6 +26,10 @@ function BoundingBox(ent1,ent2){
     return false;
 } 
 
+function dist(x,y){
+    return x*x + y*y;
+}
+
 class Grip {
     constructor(xOffset,yOffset,angle,entity){
         this.equipment=[];
@@ -79,9 +83,9 @@ class Grip {
         this.equip(slot);
     }
 
-    primary(){
+    primary(dt){
         if (this.selected > -1)
-            this.equipment[this.selected].primary(this);
+            this.equipment[this.selected].primary(this,dt);
     }
 
     update(dt){
@@ -162,13 +166,7 @@ class Tool_Flight {
         this.lastfired = 0;
         this.fireRate = 1000;
     }
-    primary(grip){
-    }
-    secondary(grip){}
-    reload(grip){}
-    unequip(){}
-    equip(){}
-    update(dt,grip){
+    primary(grip,dt){
         let entity = grip.entity;
         let dir = Math.atan2((grip.y-Mouse.y),(grip.x-Mouse.x)) + Math.PI;
         let speed = Math.sqrt(entity.xsp*entity.xsp + entity.ysp*entity.ysp);
@@ -181,13 +179,19 @@ class Tool_Flight {
         grip.entity.xsp += (Math.cos(dir)*accel*dt/dampenFactor);
         grip.entity.ysp += -1200*dt + Math.sin(dir)*accel*dt;
     }
+    secondary(grip){}
+    reload(grip){}
+    unequip(){}
+    equip(){}
+    update(dt,grip){
+    }
     static Texture = "./arrow.png";
 }
 
 class Tool_Block {
     constructor(){
         this.lastfired = 0;
-        this.fireRate = 1000;
+        this.fireRate = 100;
         this.selectedType = 5;
 
         this.ghostblock = new PIXI.Sprite(Assets.getTexture("./brick.png"));
@@ -205,6 +209,7 @@ class Tool_Block {
             packet.writeByte(this.selectedType);
             
             Net.send(packet.flush());
+            this.lastfired = Date.now();
         }
     }
     secondary(grip){
@@ -216,6 +221,7 @@ class Tool_Block {
             packet.writeByte(tx);
             packet.writeByte(ty);
             Net.send(packet.flush());
+            this.lastfired = Date.now();
         }
     }
     reload(grip){
@@ -223,16 +229,16 @@ class Tool_Block {
     }
 
     unequip(){
-        console.log("unequip")
         if (this.ghostblock.parent)
             this.ghostblock.parent.removeChild(this.ghostblock);
     }
     equip(grip){
         grip.entity.world.worldContainer.addChild(this.ghostblock);
     }
-    update(dt){
+    update(dt,grip){
         this.ghostblock.x = Math.floor(Mouse.x/16)*16;
         this.ghostblock.y = Math.floor(Mouse.y/16)*16;
+        grip.angle += Math.PI/4 * Math.max(0, Math.min(1,(Date.now() - this.lastfired)/this.fireRate)) - Math.PI/4;
     }
     static Texture = "./brick.png";
 }
@@ -266,6 +272,7 @@ class Tool_Dirt {
                 
                 Net.send(packet.flush());
             }
+            this.lastfired = Date.now();
         }
     }
     secondary(grip){
@@ -279,6 +286,8 @@ class Tool_Dirt {
                 packet.writeByte(ty);
                 Net.send(packet.flush());
             }
+
+            this.lastfired = Date.now();
         }
     }
     reload(grip){
@@ -288,17 +297,84 @@ class Tool_Dirt {
     unequip(grip){
         if (this.ghostblock.parent)
             this.ghostblock.parent.removeChild(this.ghostblock);
-        grip.entity.sprite.removeChild(this.radius);
+        // grip.entity.sprite.removeChild(this.radius);
     }
     equip(grip){
         grip.entity.world.worldContainer.addChild(this.ghostblock);
-        grip.entity.sprite.addChild(this.radius);
+        // grip.entity.sprite.addChild(this.radius);
     }
     update(dt){
         this.ghostblock.x = Math.floor(Mouse.x/16)*16;
         this.ghostblock.y = Math.floor(Mouse.y/16)*16;
+
+        this.ghostblock.alpha = (Date.now() - this.lastfired)/this.fireRate;
     }
     static Texture = "./dirt.png";
+}
+
+class Tool_Pick {
+    constructor(){
+        this.lastfired = 0;
+        this.fireRate = 200;
+
+        this.ghostblock = new PIXI.Sprite(Assets.getTexture("./dirt.png"));
+        this.ghostblock.alpha = .5;
+
+        this.radius = new PIXI.Graphics();  
+        this.radius.lineStyle(1,0xFFFFFF,.5);
+        this.radius.drawCircle(8, 8, 16*6);
+        // this.radius.anchor.x =.5;
+        // this.radius.anchor.y = .5;
+        this.radius.endFill();
+
+    }
+    primary(grip){
+        if (Date.now() > this.lastfired + this.fireRate){
+            let tx = Math.floor(Mouse.x/16);
+            let ty = Math.floor(Mouse.y/16);
+
+            
+
+            if (grip.entity.world.tileCollection.getTile(tx,ty) !== undefined){
+                packet.writeByte(MSGTYPE.TILE_REMOVE);
+                packet.writeByte(tx);
+                packet.writeByte(ty);
+                Net.send(packet.flush());
+
+            this.lastfired = Date.now();
+            }
+        }
+    }
+    secondary(grip){
+        if (Date.now() > this.lastfired + this.fireRate){
+            let tx = Math.floor(Mouse.x/16);
+            let ty = Math.floor(Mouse.y/16);
+
+            if (grip.entity.world.tileCollection.getTile(tx,ty) !== undefined){
+                packet.writeByte(MSGTYPE.TILE_REMOVE);
+                packet.writeByte(tx);
+                packet.writeByte(ty);
+                Net.send(packet.flush());
+            }
+
+            this.lastfired = Date.now();
+        }
+    }
+    reload(grip){
+
+    }
+
+    unequip(grip){
+
+    }
+    equip(grip){
+
+    }
+    update(dt,grip){
+        grip.angle += Math.PI/2 * Math.max(0, Math.min(2,(Date.now() - this.lastfired)/this.fireRate)) - Math.PI*3/2;
+
+    }
+    static Texture = "./pickaxe.png";
 }
 
 class Tool_Hand {
@@ -327,7 +403,7 @@ class Tool_Poke {
         this.fireRate = 1000;
     }
     primary(grip){
-        grip.entity.world.queueAction(new ActionRecord("use",grip.entity.id));
+        grip.entity.world.queueAction(new ActionRecord("use",grip.entity.id, Mouse.x, Mouse.y));
     }
     secondary(grip){
     }
@@ -345,7 +421,8 @@ let Tools = {
     Tool_Dirt,
     Tool_Hand,
     Tool_Poke,
-    Tool_Block
+    Tool_Block,
+    Tool_Pick
 };
 
 const GRAVITY = 1200;
@@ -360,7 +437,7 @@ class Player {
         this.ysp = -10;
         this.coyote =0;
         
-        this.grip = new Grip(0,0,0,this);
+        this.grip = new Grip(8,8,0,this);
         for (let i = 0; i < tools.length; i++){
             this.grip.pickup(new Tools[`Tool_${tools[i]}`](this));
         }
@@ -374,16 +451,16 @@ class Player {
         
         // Actions
         if (Mouse.down){
-            this.grip.primary();
+            this.grip.primary(dt);
         }
 
         if (Mouse.right){
             this.grip.secondary();
         }
-        this.grip.update(dt);
 
         this.grip.angle = Math.atan2((this.y-Mouse.y),(this.x-Mouse.x)) + Math.PI;
-        this.equipmentSprite.rotation = Math.atan2((this.y-Mouse.y),(this.x-Mouse.x)) + Math.PI;
+        this.grip.update(dt);
+        this.equipmentSprite.rotation = this.grip.angle;
 
         if (Keyboard.keys.equipPrevious.pressed)
             this.grip.equipPrevious();
@@ -398,20 +475,22 @@ class Player {
         // Movement Input
         this.coyote -= dt;
         if (Keyboard.keys.right.down && this.xsp < MAXSPEED){
-            if (this.xsp >= 0)
-                this.xsp += ACCEL * dt
-            else
-                this.xsp += ACCELREVERSE * dt;
+            // if (this.xsp >= 0)
+            //     this.xsp += ACCEL * dt
+            // else
+            //     this.xsp += ACCELREVERSE * dt;
+            this.xsp = 250;
         } 
         if (Keyboard.keys.left.down && this.xsp > -MAXSPEED){
-            if (this.xsp < 0)
-                this.xsp -= ACCEL * dt
-            else
-                this.xsp -= ACCELREVERSE * dt;
+            // if (this.xsp < 0)
+            //     this.xsp -= ACCEL * dt
+            // else
+            //     this.xsp -= ACCELREVERSE * dt;
+            this.xsp = -250;
         }
 
         if (!Keyboard.keys.right.down && !Keyboard.keys.left.down)
-            this.xsp*= 1- (DAMPEN * dt);
+            this.xsp*= 0;
 
         this.ysp += GRAVITY*dt;
 
@@ -452,7 +531,7 @@ class Player {
         }
 
         if (this.collision & DIRECTIONS.DOWN) {
-            this.coyote = .2;
+            this.coyote = .15;
         }
 
         this.sprite.parent.pivot.x = Math.floor(this.x - window.innerWidth/2);
@@ -465,7 +544,6 @@ class Player {
         buffer.writeInt16(this.y);
         this.grip.serialize(buffer);
     }
-
 
     onCollide(world,other){
     }

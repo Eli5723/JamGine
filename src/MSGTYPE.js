@@ -34,6 +34,8 @@ let MSG = {
 
     SOUND_PLAY : i++,
 
+    TEAM_INFO : i++,
+
     TILE_SET : i++,
     TILE_REMOVE : i++,
 

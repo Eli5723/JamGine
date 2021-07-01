@@ -92,6 +92,10 @@ class SocketGroup {
     resolveDisconnect(socket){
         this.remove(socket);
         this.onDisconnect(socket);
+
+        if (socket.team){
+            socket.team.resolveDisconnect(socket);
+        }
     }
 }
 

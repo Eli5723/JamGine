@@ -1,5 +1,6 @@
 
 import * as PIXI from 'pixi.js'
+import * as PIXI_Filters from 'pixi-filters'
 
 import {EntityDictionary} from "../common/EntityDictionary.js"
 import {EntityRecord} from "../common/EntityRecord";
@@ -38,11 +39,12 @@ class Background extends PIXI.Graphics {
 }
 
 class ClientInstance {
-    constructor(name, width, height, combat){
+    constructor(name, width, height, combat,readyState){
         this.name = name;
         this.width = width;
         this.height = height;
         this.combat = combat;
+        this.readyState = readyState;
 
         this.tileCollection = new TileCollectionRendered();
 
@@ -55,7 +57,7 @@ class ClientInstance {
         this.background.setSize(this.width,this.height);
         this.worldContainer.addChild(this.background);
         this.worldContainer.addChild(this.tileCollection.container);
-        
+       
 
         this.bottom = new PIXI.TilingSprite(Assets.getTexture("./warning.png"), this.width,11);
         this.bottom.y = this.height;
@@ -77,8 +79,14 @@ class ClientInstance {
         this.effectEntities = new Map();
         this.effectIdGenerator = new IdGenerator();
 
-        if (!this.combat)
+        if (!this.combat) {
             this.addEffect(["Label",window.innerWidth/2,0,["You have "," dolla bill$ remaining."],["budget"]]);
+
+            let fightSign = new PIXI.Sprite(Assets.getTexture("./fight.png"));
+            fightSign.x = width;
+            fightSign.y = height/2 -80;
+            this.worldContainer.addChild(fightSign);
+        }
 
         this.info = new NetMap();
     }
@@ -89,18 +97,26 @@ class ClientInstance {
         let width = data.readUint16();
         let height = data.readUint16();
         let combat = data.readByte();
-        console.log("Combat: "+combat);
+        let readyState = data.readByte();
+        console.log(`Instance: ${name} | ${width}, ${height} | ${combat}`);
 
-        let world = new ClientInstance(name, width, height, combat);
+        console.log("Loading Edict");
+        let world = new ClientInstance(name, width, height, combat,readyState);
         world.edict.decode(data);
+        world.edict.print();
 
         world.edict.forEach((record,id)=>{
             world.addServerEntity(id,record);
         });
 
+        console.log("Loading Stage");
         world.tileCollection.load(data);
+        
+        console.log("Loading Info");
         world.info.load(data);
-        world.consumeState(data);
+
+        console.log("Adding State");
+        // world.consumeState(data);
 
         return world;
     }

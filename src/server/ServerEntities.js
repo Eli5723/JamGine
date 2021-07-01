@@ -18,6 +18,7 @@ class Player {
         this.ysp = 20;
         this.aimAngle = 0;
         this.grip = new Grip();
+        this.holding = 0;
     }
 
     update(dt){
@@ -161,15 +162,16 @@ class Box {
         if (this.collision){
             World.removeEntityDie(this.id);
 
-            let tile = World.tileCollection.getTile(this.hitX,this.hitY);
-            if (tile < 6){
-                // World.removeTile(this.hitX, this.hitY);
-                if (tile > 1) {
+            if (World.combat) {
+                let tile = World.tileCollection.getTile(this.hitX,this.hitY);
+                if (tile < 6){
                     // World.removeTile(this.hitX, this.hitY);
-                    World.setTile(this.hitX,this.hitY, tile - 1);
-                } else {
-                    World.removeTile(this.hitX, this.hitY);
-                    console.log("removed");
+                    if (tile > 1) {
+                        // World.removeTile(this.hitX, this.hitY);
+                        World.setTile(this.hitX,this.hitY, tile - 1);
+                    } else {
+                        World.removeTile(this.hitX, this.hitY);
+                    }
                 }
             }
         }
@@ -369,14 +371,17 @@ class Cannon {
         Collision : true
     }
 
-    use(){
+    use(x,y){
         if (Date.now() > this.lastfired + this.fireRate){
             const power = 800;
+            let angle = Math.atan2((this.y-y),(this.x-x)) + Math.PI;
+            let xsp = power*Math.cos(angle);
+            let ysp = power*Math.sin(angle);
 
             if (this.facing == 1) {
-                this.instance.createServerEntity(new EntityRecord("Box",this.x+36,this.y+3,1200,-500,this.id));
+                this.instance.createServerEntity(new EntityRecord("Box",this.x+36,this.y+3,xsp,ysp,this.id));
             } else {
-                this.instance.createServerEntity(new EntityRecord("Box",this.x,this.y+3,-1200,-500,this.id));
+                this.instance.createServerEntity(new EntityRecord("Box",this.x,this.y+3,xsp,ysp,this.id));
             }
             this.lastfired = Date.now();
         }

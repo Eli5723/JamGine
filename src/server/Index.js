@@ -119,35 +119,74 @@ class Team {
         this.size++;
         socket.team = this;
         this.currentInstance.addPlayer(socket);
+        this.inform();
     }
 
     gatherPlayers(){
         for (let id in this.sockets){
-            this.currentInstance.addPlayer(this.sockets[id]);
+            let ws = this.sockets[id];
+            if (ws.readyState == 1){
+                this.currentInstance.addPlayer(ws);
+            } else {
+                delete this.sockets[id];
+            }
         }
+    }
+
+    resolveDisconnect(socket){
+        this.removePlayer(socket);
     }
 
     removePlayer(socket){
         let player = this.sockets[socket.id];
-        delete this.sockets[socket.id];
+        if (player) {
+            delete this.sockets[socket.id];
 
-        if (player)
-            this.size--;
+            if (player)
+                this.size--;
+
+            this.inform();
+        }
     }
 
     setInstance(instance){
         this.currentInstance = instance;
+    }
+
+    inform(){
+        packet.writeByte(MSG.TEAM_INFO);
+        packet.writeAscii(this.name);
+
+        let socks = Object.keys(this.sockets);
+        let count = socks.length;
+        packet.writeByte(count);
+        for (let id in this.sockets) {
+            packet.writeAscii(this.sockets[id].identity.username);
+        }
+
+        this.broadcast(packet.flush());
+    }
+
+    broadcast(data){
+        for (let id in this.sockets){
+            let ws = this.sockets[id];
+            if (ws.readyState == 1){
+                ws.send(data);
+            }
+        }
     }
 }
 
 let activeInstances = [];
 function enableInstance(instance){
     activeInstances.push(instance);
+    instance.active = true;
     console.log("Enabled: "+ instance.name);
 }
 
 function disableInstance(instance){
     activeInstances = activeInstances.filter((inst)=>inst != instance);
+    instance.active = false;
 }
 
 
@@ -191,8 +230,7 @@ function createCombatInstance(leftTeam, rightTeam){
 
     // Set up win condition
     combatInstance.onResult = (winner,loser)=>{
-        enableInstance(winner.baseInstance);
-        winner.baseInstance.info.set(winner.baseInstance.info.get("buget")+ 10);
+        winner.baseInstance.grantDolla(20);
         winner.setInstance(winner.baseInstance);
         winner.enableInstance();
         
@@ -213,10 +251,12 @@ function loop(){
     // Simulation
     let dt = TIMESTEP / 1000.0;
     
+    // Run Instances
     for (let i=0; i < activeInstances.length; i++){
         activeInstances[i].run(dt);
     }
 
+    // Matchmaking
     if (activeInstances.length == 2){
         if (activeInstances[0].readyState && activeInstances[1].readyState){
             let left = activeInstances.pop();
