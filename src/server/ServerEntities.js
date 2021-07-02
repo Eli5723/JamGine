@@ -188,7 +188,7 @@ class Box {
         if (other.type == Player){
             world.ev_die(other.id);
             world.removeEntity(this.id);
-        } else if (other.type == Core || other.type == Cannon) {
+        } else if (other.type == Core) {
             world.playSound("clink");
             world.removeEntity(this.id);
             other.holder = 0;
@@ -442,8 +442,8 @@ class Slingshot {
     constructor(x,y,xsp,ysp, facing = 1){
         this.x = x;
         this.y = y;
-        this.width = 38;
-        this.height = 21;
+        this.width = 24;
+        this.height = 32;
         this.xsp = xsp;
         this.ysp = ysp;
         this.collision = 0;
@@ -513,18 +513,14 @@ class Slingshot {
         Collision : true
     }
 
-    use(x, y, id){
+    use(x,y,id){
         if (Date.now() > this.lastfired + this.fireRate){
             const power = 800;
             let angle = Math.atan2((this.y-y),(this.x-x)) + Math.PI;
             let xsp = power*Math.cos(angle);
             let ysp = power*Math.sin(angle);
 
-            if (this.facing == 1) {
-                this.instance.createServerEntity(new EntityRecord("Box",this.x+36,this.y+3,xsp,ysp,this.id));
-            } else {
-                this.instance.createServerEntity(new EntityRecord("Box",this.x,this.y+3,xsp,ysp,this.id));
-            }
+            this.instance.entImpulse(id,xsp,ysp);
             this.lastfired = Date.now();
         }
     }
@@ -591,4 +587,4 @@ class ClientCursor {
 }
 
 
-export {Box, Player, ClientCursor, Core, Cannon, Ghost}
+export {Box, Player, ClientCursor, Core, Cannon,Slingshot, Ghost}

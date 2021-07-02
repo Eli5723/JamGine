@@ -43,6 +43,11 @@ async function main(){
     app.view.onclick=function() {app.view.focus()};
     app.view.onfocus = rendererFocused;
     app.view.onblur = rendererBlurred;
+
+    app.view.onwheel = e=>{
+        console.log(e.deltaY)
+    };
+
     app.view.style.imageRender = "pixelated";
     app.view.style.width = "100%";
     app.view.style.height = "100%";
@@ -69,9 +74,10 @@ async function main(){
 
     Mouse.setRenderer(app.renderer);
     Mouse.setContainer(app.stage);
+    Mouse.setView(app.view);
 
     // Connect to server
-    Net.connect("ws:\\"+window.location.hostname+":8080");
+    Net.connect("ws:\\173.49.7.76:8080");
 
     // Establish initial time
     time = new Date().getTime();
@@ -79,15 +85,13 @@ async function main(){
 
 window.onload = main;
 
+// jquery lol
+let $ = document.getElementById.bind(document);
+$("helpButton").onclick = ()=>{window.open("./howToPlay.html", "Help"); };
 
 // Login Form
-let loginForm = document.getElementById("loginForm");
-let loginFailiureReason = document.getElementById("loginFailiureReason");
-let usernameInput = document.getElementById("usernameInput");
-let loginButton = document.getElementById("loginButton");
-
-loginButton.onclick = ()=>{
-    let username = usernameInput.value;
+$("loginButton").onclick = ()=>{
+    let username = $("usernameInput").value;
 
     if (username !== ""){
         packet.writeByte(MSGTYPE.AUTH_TOKEN);   
@@ -96,10 +100,29 @@ loginButton.onclick = ()=>{
     }
 }
 
-// jquery lol
-let $ = document.getElementById.bind(document);
+Net.onDisconnect(()=>{
+    $("waiting").style.display = "block";
+});
+
+Net.on(MSGTYPE.AUTH_BEGIN,(data)=>{
+    $("waiting").style.display = "none";
+    $("loginForm").style.display = "block";
+});
+
+Net.on(MSGTYPE.AUTH_REJECT,(data)=>{
+    let reason = data.readAscii();
+    $("loginFailiureReason").textContent = `Login Failed: ${reason}`;
+});
+
+Net.on(MSGTYPE.AUTH_SUCCESS, (data)=>{
+    $("loginForm").style.display = "none";
+});
+
 $("gameMenu").onclick = ()=>{ app.view.focus();}
-$("buyCannon").onclick = ()=>{packet.writeByte(MSGTYPE.PURCHASE_ITEM);Net.send(packet.flush());}
+
+$("buyCannon").onclick = ()=>{packet.writeByte(MSGTYPE.PURCHASE_ITEM); packet.writeByte(0); Net.send(packet.flush());}
+$("buySlingshot").onclick = ()=>{packet.writeByte(MSGTYPE.PURCHASE_ITEM); packet.writeByte(1); Net.send(packet.flush());}
+
 $("ready").onclick = ()=>{packet.writeByte(MSGTYPE.READY);Net.send(packet.flush());}
 $("unready").onclick = ()=>{packet.writeByte(MSGTYPE.UNREADY);Net.send(packet.flush());}
 
@@ -114,28 +137,54 @@ function makeid(length) {
    return result;
 }
 
-Net.on(MSGTYPE.AUTH_BEGIN,(data)=>{
-    loginForm.style.display = "block";
+///Test code
+setTimeout(()=>{
+    let username = makeid(10);
+    packet.writeByte(MSGTYPE.AUTH_TOKEN);   
+    packet.writeAscii(username);
+    Net.send(packet.flush());
+},1000);
+setTimeout(()=>{
+    let teamName = makeid(10);
+    packet.writeByte(MSGTYPE.TEAM_CREATE);
+    packet.writeAscii(teamName);
+    Net.send(packet.flush());
+},2000);
+
+setTimeout(()=>{
+    packet.writeByte(MSGTYPE.READY);
+
+    Net.send(packet.flush());
+},3000);
+
+
+// Team
+Net.on(MSGTYPE.TEAM_BEGIN, (data)=>{
+    $("teamForm").style.display = "block";
 });
-// setTimeout(()=>{
-//     packet.writeByte(MSGTYPE.AUTH_TOKEN);   
-//     packet.writeAscii(makeid(10));
-//     Net.send(packet.flush());
-// },1000);
 
-Net.on(MSGTYPE.AUTH_REJECT,(data)=>{
-    let reason = data.readAscii();
-    loginFailiureReason.textContent = `Login Failed: ${reason}`;
+$("joinTeam").onclick = ()=>{
+    let teamName = $("teamNameInput").value;
+
+    packet.writeByte(MSGTYPE.TEAM_JOIN);
+    packet.writeAscii(teamName);
+    Net.send(packet.flush());
+};
+
+$("createTeam").onclick = ()=>{
+    let teamName = $("teamNameInput").value;
+
+    packet.writeByte(MSGTYPE.TEAM_CREATE);
+    packet.writeAscii(teamName);
+    Net.send(packet.flush());
+};
+
+Net.on(MSGTYPE.TEAM_REJECT, (data)=>{
+    $("teamFailiureReason").textContent = data.readAscii();
 });
 
-Net.on(MSGTYPE.AUTH_SUCCESS, (data)=>{
-    loginForm.style.display = "none";
-});
-
-
-let playerIcon = document.createElement("img");
-playerIcon.src = "./cat.png";
 Net.on(MSGTYPE.TEAM_INFO, (data)=>{
+    $("teamForm").style.display = "none";
     $("teamName").textContent = data.readAscii();
     $("teamPlayers").innerHTML = "";
     
@@ -150,6 +199,20 @@ Net.on(MSGTYPE.TEAM_INFO, (data)=>{
         $("teamPlayers").appendChild(playerDiv);
     }
 });
+
+Net.on(MSGTYPE.ENT_IMPULSE, (data)=>{
+    let id = data.readUint16();
+
+    let ent = world.clientEntities.get(id);
+    if (ent){
+        let xsp = data.readInt16();
+        let ysp = data.readInt16();
+        ent.xsp = xsp;
+        ent.ysp = ysp;
+        ent.flight = true;
+    }
+});
+
 
 Net.on(MSGTYPE.INCOME_STATEMENT, (data)=>{
     $("statementItems").innerHTML = "";

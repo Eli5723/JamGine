@@ -342,7 +342,7 @@ class Tool_Pick {
         if (Date.now() > this.lastfired + this.slashRate) {
             let angle = Math.atan2((grip.y-Mouse.y),(grip.x-Mouse.x)) + Math.PI;
             let dist = 16;
-            grip.entity.world.queueAction(new ActionRecord("slash",grip.x + Math.cos(angle)*dist,grip.y + Math.sin(angle)*dist,angle));
+            grip.entity.world.queueAction(new ActionRecord("slash",grip.x + Math.cos(angle)*dist,grip.y +8+ Math.sin(angle)*dist,angle, grip.entity.id));
             this.lastfired = Date.now();
         }
     }
@@ -389,9 +389,11 @@ class Tool_Poke {
         this.fireRate = 1000;
     }
     primary(grip){
-        grip.entity.world.queueAction(new ActionRecord("use",grip.entity.id, Mouse.x, Mouse.y));
+        grip.entity.world.queueAction(new ActionRecord("grab",grip.entity.id));
     }
     secondary(grip){
+        grip.entity.world.queueAction(new ActionRecord("use",grip.entity.id, Mouse.x, Mouse.y));
+        grip.entity.world.queueAction(new ActionRecord("drop",grip.entity.id));
     }
     reload(grip){}
     unequip(grip){
@@ -435,7 +437,6 @@ class Player {
     }
 
     update(dt, World, Mouse, Keyboard){
-        this.flight = false;
         // Actions
         if (Mouse.down){
             this.grip.primary(dt);
@@ -449,10 +450,10 @@ class Player {
         this.grip.update(dt);
         this.equipmentSprite.rotation = this.grip.angle;
 
-        if (Keyboard.keys.equipPrevious.pressed)
+        if (Keyboard.keys.equipPrevious.pressed || Mouse.scroll < 0)
             this.grip.equipPrevious();
 
-        if (Keyboard.keys.equipNext.pressed)
+        if (Keyboard.keys.equipNext.pressed || Mouse.scroll > 0)
             this.grip.equipNext();
 
         const ACCEL = 1200;
@@ -462,17 +463,11 @@ class Player {
         // Movement Input
         this.coyote -= dt;
         if (Keyboard.keys.right.down && this.xsp < MAXSPEED){
-            // if (this.xsp >= 0)
-            //     this.xsp += ACCEL * dt
-            // else
-            //     this.xsp += ACCELREVERSE * dt;
+            this.flight = false;
             this.xsp = 250;
         } 
         if (Keyboard.keys.left.down && this.xsp > -MAXSPEED){
-            // if (this.xsp < 0)
-            //     this.xsp -= ACCEL * dt
-            // else
-            //     this.xsp -= ACCELREVERSE * dt;
+            this.flight = false;
             this.xsp = -250;
         }
 
@@ -518,6 +513,7 @@ class Player {
         }
 
         if (this.collision & DIRECTIONS.DOWN) {
+            this.flight = false;
             this.coyote = .15;
         }
 
@@ -799,6 +795,61 @@ class Cannon {
     }
 }
 
+class Slingshot {
+    constructor(x,y){
+        this.x = x;
+        this.y = y;
+        this.xsp = 0;
+        this.ysp = 0;
+        this.width = 24;
+        this.height = 24;
+        this.facing = 1;
+    }
+
+    static flags = {
+        Collision : true
+    }
+
+    serialize(buffer){
+        buffer.writeByte(4); // Size header is required
+        buffer.writeInt16(this.x);
+        buffer.writeInt16(this.y);
+    }
+
+    onCollide(world,other){
+    }
+
+    instate(data){
+        let ox = this.x;
+        let oy = this.y;
+
+        this.x = data.readInt16();
+        this.y = data.readInt16();
+        
+        this.xsp = this.x - ox;
+        this.ysp = this.y - oy;
+
+        this.sprite.x = this.x;
+        this.sprite.y = this.y;
+
+        this.facing = data.readByte();
+        if (this.facing == 1) {
+            this.sprite.anchor.x = 0;
+            this.sprite.scale.x = 1;
+        } else {
+            this.sprite.anchor.x = 1;
+            this.sprite.scale.x = -1;
+        }
+    }
+
+    initGraphics(worldContainer,uiContainer){
+        this.sprite = new PIXI.Sprite(Assets.getTexture("slingshot"));
+        this.sprite.zIndex = 10000;
+        worldContainer.addChild(this.sprite);
+        
+    }
+}
+
 class ClientCursor {
     constructor(){
         this.x = 0;
@@ -972,6 +1023,7 @@ export {
     ClientCursor,
     Core,
     Cannon,
+    Slingshot,
     TileShard,
     Label,
     Ghost,

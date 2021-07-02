@@ -5,6 +5,9 @@ let right = 0;
 let _pressed = false;
 let _released = false;
 
+let _scrollPrev = 0;
+let _scroll = 0;
+
 let enabled = false;
 
 let interaction;
@@ -17,6 +20,10 @@ function setRenderer(renderer){
 function setContainer(newContainer){
     container = newContainer;
     container.interactive = true;
+}
+
+function setView(element){
+    element.onwheel = e=>{_scroll= e.deltaY};
 }
 
 function update(){
@@ -36,6 +43,9 @@ function update(){
         _pressed=true;
     else if (downWas&&!down)
         _released=true;
+
+    _scrollPrev = _scroll;
+    _scroll = 0;
 }
 
 function enable(){
@@ -54,6 +64,7 @@ function clear(){
 export default {
     setContainer,
     setRenderer,
+    setView,
     update,
     enable,
     disable,
@@ -81,5 +92,9 @@ export default {
 
     get pressed(){
         return _pressed;
+    },
+
+    get scroll(){
+        return _scrollPrev;
     }
 };

@@ -4,12 +4,15 @@ import MSGTYPE from '../MSGTYPE.js'
 let socket;
 let events;
 
+let _handleDisconnect = ()=>{};
+
 //Initialize Connection
 function connect(_url){
     socket = new WebSocket(_url);
     socket.binaryType = "arraybuffer";    
     socket.onmessage = resolveEvent;
     socket.onclose = ()=>{
+        _handleDisconnect();
         let reload = window.confirm("Lost connection to the game server!\n Try reconnecting?");
         if (reload)
             location.reload();
@@ -24,6 +27,10 @@ function connected(){
 events = {};
 function on(id,callback){
     events[id] = callback;
+}
+
+function onDisconnect(callback){
+    _handleDisconnect = callback;
 }
 
 function resolveEvent(e){
@@ -45,5 +52,6 @@ export default {
     connect,
     connected,
     on,
-    send
+    send,
+    onDisconnect
 }

@@ -6,9 +6,9 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "production": "parcel build ./src/client/index.html --no-minify --no-cache && cp -R ./assetsrc/* ./dist",
-    "development": "parcel ./src/client/index.html",
-    "run" : ""
+    "production": "parcel build ./src/client/*.html --no-minify --no-cache && cp -R ./assetsrc/* ./dist",
+    "development": "parcel ./src/client/*.html",
+    "run": "(sudo node ./staticserve.js & node ./src/server/Index.js)"
   },
   "browserslist": [
     "last 2 Chrome versions"
@@ -16,6 +16,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "express": "^4.17.1",
     "howler": "^2.2.1",
     "parcel-bundler": "^1.12.5",
     "pixi-filters": "^4.1.3",

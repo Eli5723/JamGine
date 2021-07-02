@@ -15,6 +15,15 @@
         <button id="loginButton">Login</input>
     </div>
 
+    <div id ="teamForm" class="startHidden card">
+        <img src="./assets/logo.png"/>
+        <h1> Join a team! </h1>
+        <div stlye="color:red;" id="teamFailiureReason"></div>
+        <input id="teamNameInput" class="f" type="text"></input>
+        <button id="joinTeam" class="h">join</input>
+        <button id="createTeam" class="h">create</input>
+    </div>
+
     <div id = "gameMenu" class="startHidden">
         <div id ="teamMenu" class="card">
             <h1><span id="teamName"></span></h1>
@@ -29,10 +38,12 @@
         <div id="buyMenu" class="card">
             <h1>Buy Items</h1>
             <button id="buyCannon">Cannon............$30</button>
-            <button id="buySlingshot">Slingshot..........$30</button>
+            <button id="buySlingshot">Slingshot..........$10</button>
             <br>
         </div>
     </div>
+
+    <div id="waiting" style="color:yellow" class="center">No connection to server...</div>
 
 
     <div id="statement" class="card startHidden center">
@@ -42,6 +53,10 @@
         <button id="closeStatement">Close Statement</button>
     </div>
 
+
+    <div id="helpButton" class="topRight card">
+        Help
+    </div>
 
     <div id="attach">
     </div>
@@ -66,6 +81,14 @@
     #attach {
         width:100%;
         height:100%;
+    }
+
+    .h {
+        width :50%;
+    }
+    
+    .f {
+        width:100%;
     }
 
     .card {
@@ -104,12 +127,51 @@
         transform: translate(-50%,-50%);
         background-color:#f0ead6;
     }
+
+    #teamForm {
+        display : none;
+        padding: 1em;
+        position: absolute;
+        left:50%;
+        top:50%;
+        transform: translate(-50%,-50%);
+        background-color:#f0ead6;
+    }
+
+    #teamForm > button {
+        height: 32px;
+        width:calc(50% - 3em);
+        border: solid;
+        border-color: black;
+        border-width: 1px;
+        padding-left: 8px;
+        padding-right: 8px;
+    }
+
+    #teamForm > input {
+        line-height: 32px;
+        border-color: black;
+        border: solid;
+        border-width: 1px;
+        padding-left: 8px;
+        padding-right: 8px;
+        background-color:#f0ead6;
+        font-size: 28px;
+        width:100%;
+    }
     
     .center {
         position: absolute;
         left:50%;
         top:50%;
         transform: translate(-50%,-50%);
+    }
+
+    .topRight {
+        position: absolute;
+        left:100%;
+        top:0%;
+        transform: translate(-100%,0%);
     }
 
     #loginForm > input {

@@ -9,6 +9,15 @@ let MSG = {
     AUTH_REJECT : i++,
     AUTH_SUCCESS : i++,
     
+    // TEAM SELECTIOn
+    TEAM_BEGIN: i++,
+
+    TEAM_CREATE: i++,
+    TEAM_JOIN: i++,
+
+    TEAM_REJECT: i++,
+    TEAM_INFO : i++,
+
     // Game Utility
     FULLSTATE : i++,
     FULLSTATE_SUCCESS : i++,
@@ -30,13 +39,14 @@ let MSG = {
     ENT_ADD_SERVERSIDE : i++,
     ENT_ADD_TEMP : i++,
 
+    ENT_IMPULSE : i++,
+
     ENT_EFFECT : i++,
 
     REMOVE_ENT : i++,
 
     SOUND_PLAY : i++,
 
-    TEAM_INFO : i++,
     INCOME_STATEMENT : i++,
     
     TILE_SET : i++,

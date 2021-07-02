@@ -15,7 +15,7 @@ import * as Entities from "./ServerEntities.js"
 import MSGTYPE from "../MSGTYPE.js"
 import SocketGroup from "./SocketGroup.js"
 
-let packet = new TypedBuffer(50000);
+let packet = TypedBuffer.getInstance();
 
 const DIRECTIONS = {
     UP : 0b0001,
@@ -31,6 +31,19 @@ function BoundingBox(ent1,ent2){
         ent1.y + ent1.height > ent2.y)
     return true;
     return false;
+}
+
+// Distance from center
+function pointDist(ent,x1,y1,radius){
+    let dx = (ent.x + ent.width/2) - x1;
+    let dy = (ent.y + ent.height/2) - y1;
+
+    let dist = Math.sqrt(dx*dx + dy*dy);
+
+    if (dist < (radius + ent.width))
+        return true;
+    else
+        return false;
 }
 
 class ServerInstance {
@@ -75,7 +88,7 @@ class ServerInstance {
         this.players.on(MSGTYPE.READY,this.msg_READY.bind(this));
         this.players.on(MSGTYPE.UNREADY,this.msg_UNREADY.bind(this));
 
-        this.players.onDisconnect = this.removePlayer.bind(this);
+        this.players.onDisconnect = this.handleAbandon.bind(this);
         console.log(`INSTANCE | ${this.name} | Created | ${this.combat ? "Combat" : "Building"}`);
         
         this.onResult = (winner, loser)=>{};
@@ -96,6 +109,25 @@ class ServerInstance {
         ws.send(packet.flush());
     }
 
+    handleAbandon(ws){
+        this.removePlayer(ws);
+        if (this.combat) {
+            let players = this.entityTypes.Player;
+            let survivors = false;
+            let id;
+            for (id in players){
+                if (players[id].owner.team == ws.team){
+                survivors = true;
+                }
+            }
+            if (!survivors){
+                let losingTeam = ws.team;
+                let winningTeam = players[id].owner.team; // the winning team still has a survivng player
+                this.end(winningTeam,losingTeam);
+            }
+        } 
+    }
+
     removePlayer(ws){
         console.log(`instance | ${this.name} | ${ws.identity.username} removed`);
         this.networkedEntities.forEach((entity)=>{
@@ -103,7 +135,6 @@ class ServerInstance {
                 this.removeEntity(entity.id);
             }
         });
-
         return ws;
     }
 
@@ -187,6 +218,14 @@ class ServerInstance {
         this.players.broadcast(packet.flush());
     }
 
+    entImpulse(id,xsp,ysp){
+        packet.writeByte(MSGTYPE.ENT_IMPULSE);
+        packet.writeUInt16(id);
+        packet.writeInt16(xsp);
+        packet.writeInt16(ysp);
+        this.players.broadcast(packet.flush());
+    }
+
     // Entity Handling
     createServerEntity(record){
         // Create local copy of  Entity
@@ -222,6 +261,9 @@ class ServerInstance {
     }
 
     createClientEntity(ws,record){
+        if (ws.readyState != 1){
+            return;
+        }
         let id = this.idGen.getId();
         let type = record[0];
         let args = record.slice(1);
@@ -378,7 +420,7 @@ class ServerInstance {
         if (this.combat){
             let spawn = this.getEntityTeam("Core",ws.team);
             if (spawn){
-                this.createClientEntity(ws ,new EntityRecord("Player", spawn.x + 4, spawn.y + 4, "Bow", "Dirt", "Hand", "Poke", "Pick"));
+                this.createClientEntity(ws ,new EntityRecord("Player", spawn.x + 4, spawn.y + 4, "Bow", "Dirt",  "Poke", "Pick"));
             } else {
                 // Create a ghost, check if there are any living players
                 this.createClientEntity(ws ,new EntityRecord("Ghost", x, y));
@@ -391,21 +433,20 @@ class ServerInstance {
                     }
                 }
                 if (survivors){
-                    console.log("There are still survivors");
+                    // There are survivors
                 } else {
                     
                     let losingTeam = ws.team;
                     let winningTeam = players[id].owner.team; // the winning team still has a survivng player
-                    console.log(losingTeam.name + " | " + winningTeam.name);
                     this.end(winningTeam,losingTeam);
                 }   
             }
         } else {
             let spawn = this.getEntityRandom("Core");
             if (spawn) {
-                this.createClientEntity(ws,new EntityRecord("Player", spawn.x + 4, spawn.y + 4, "Block","Flight","Hand","Poke","Flight","Bow","Pick"));    
+                this.createClientEntity(ws,new EntityRecord("Player", spawn.x + 4, spawn.y + 4, "Block","Flight","Poke","Flight","Bow","Pick"));    
             } else {
-                this.createClientEntity(ws,new EntityRecord("Player", 0, 0, "Block","Flight","Hand","Poke","Flight","Bow","Pick"));
+                this.createClientEntity(ws,new EntityRecord("Player", 0, 0, "Block","Flight","Poke","Flight","Bow","Pick"));
             }
         }
     }
@@ -511,8 +552,27 @@ class ServerInstance {
             } break;
 
             case "slash": {
-                this.playEffect(new EntityRecord("Slash",record[1], record[2], record[3]));
+                let x = record[1];
+                let y = record[2];
+                let angle = record[3];
 
+                this.playEffect(new EntityRecord("Slash",record[1], record[2], record[3]));
+                let length = 20;
+                x += Math.cos(angle)*length;
+                y += Math.sin(angle)*length;
+                
+                let players = this.getEntityType("Player");
+                let me = record[4];
+                for (let id in players){
+                    if (id == me)
+                        continue;
+                    let ent = players[id];
+                    if (pointDist(ent, x,y,16)){
+                        this.ev_die(ent.id);
+                        console.log("slash hit");
+                    }
+                }
+                
             } break;
 
             case "grab": {
@@ -549,7 +609,7 @@ class ServerInstance {
                     this.networkedEntities.forEach((toUse,id)=>{
                         if (toUse.constructor.flags.Useable){
                             if (BoundingBox(ent,toUse))
-                                toUse.use(record[2],record[3],record[4]);
+                                toUse.use(record[2],record[3],record[1]);
                         }
                     });
                 }
@@ -655,12 +715,23 @@ class ServerInstance {
     }
 
     msg_PURCHASE_ITEM(ws,data){
-        this.createServerEntity(new EntityRecord("Cannon",this.width/2 - 18,0,0,0));
-        this.playSound("kaching");
 
-        packet.writeByte(MSGTYPE.INFO_SET);
-        this.info.encodeSet(packet, "budget",this.info.get("budget")-10);
-        this.players.broadcast(packet.flush());
+        let type = data.readByte();
+        
+
+        switch (type){
+            case 0: 
+            this.createServerEntity(new EntityRecord("Cannon",this.width/2 - 18,0,0,0));
+            this.playSound("kaching");
+            this.spendDolla(30);
+            break;
+
+            case 1:
+            this.createServerEntity(new EntityRecord("Slingshot",this.width/2 - 18,0,0,0));
+            this.playSound("kaching");
+            this.spendDolla(10);
+            break;
+        }
     }
 
     msg_READY(ws,data){

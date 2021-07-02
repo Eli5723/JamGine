@@ -38,6 +38,15 @@ authenticating.onAdd = (ws)=>{
 authenticating.on(MSG.AUTH_TOKEN,(ws,data)=>{
     // TODO: reimplement JWT
     let username = data.readAscii();
+    username = username.trim();
+    
+    // Check if a name is valid
+    if (username.length == 0 || username.length > 26){
+        packet.writeByte(MSGTYPE.AUTH_REJECT);
+        packet.writeAscii("That name is too long.");
+        ws.send(packet.flush());
+        return;
+    }
 
     //Check if a user is already using that name
     for (let id in Connections.sockets){
@@ -62,13 +71,55 @@ authenticating.on(MSG.AUTH_TOKEN,(ws,data)=>{
     ws.send(packet.flush());
     console.log(`AUTH | ${identity.username} | logged in.`);
     authenticating.remove(ws);
+    teamLobby.add(ws);
 
-    // Send Full state to client
-    toPick = (toPick+1) % teams.length;
-    teams[toPick].addPlayer(ws);
 });let idIncrementer = 0;
-let toPick = 0;
 
+let teamLobby = new SocketGroup();
+teamLobby.onAdd = (ws)=>{
+    packet.writeByte(MSGTYPE.TEAM_BEGIN);
+    ws.send(packet.flush());
+};
+
+teamLobby.on(MSGTYPE.TEAM_CREATE,(ws,data)=>{
+    let name = data.readAscii();
+    name = name.trim();
+    if (name.length == 0 || name.length > 26){
+        packet.writeByte(MSGTYPE.TEAM_REJECT);
+        packet.writeAscii("Team name is too long.");
+        ws.send(packet.flush());
+        return;
+    }
+
+    if (getTeamNormal(name)){
+        packet.writeByte(MSGTYPE.TEAM_REJECT);
+        packet.writeAscii("Team already exists.");
+        ws.send(packet.flush());
+        return;
+    } else {
+        teamLobby.remove(ws);
+        let team = createTeam(name);
+        team.enableInstance();
+        team.addPlayer(ws);
+        return;
+    }
+});
+
+
+teamLobby.on(MSGTYPE.TEAM_JOIN,(ws,data)=>{
+    let name = data.readAscii();
+    name = name.trim();
+    let team = getTeamNormal(name);
+
+    if (!team){
+        packet.writeByte(MSGTYPE.TEAM_REJECT);
+        packet.writeAscii("Team does not exist.");
+        ws.send(packet.flush());
+    } else {
+        teamLobby.remove(ws);
+        team.addPlayer(ws);
+    }
+});
 
 
 // Test Instance
@@ -95,13 +146,13 @@ class Team {
 
     constructor(name){
         this.name = name;
+        this.closed = false;
         this.size = 0;
         this.sockets = {};
         this.baseInstance = createBuildingInstance(this.name);
         this.currentInstance = this.baseInstance;
 
         this.id = this.constructor.idGenerator.getId();
-        this.enableInstance();
         console.log(`Team | ${this.name} | Created`);
     }
 
@@ -147,6 +198,10 @@ class Team {
 
             this.inform();
         }
+
+        if (this.size == 0){
+            removeTeam(this);
+        }
     }
 
     setInstance(instance){
@@ -177,6 +232,40 @@ class Team {
     }
 }
 
+let teams = {};
+
+function createTeam(name){
+    let newTeam = new Team(name);
+    teams[name] = newTeam;
+    return newTeam;
+}
+
+function getTeam(name){
+    return teams[name];
+}
+
+function nameNormalForm(name){
+    let normalform = name.toLowerCase();
+    return normalform;
+}
+
+function getTeamNormal(name){
+    let normalform = nameNormalForm(name);
+
+    for (let otherName in teams){
+        if (nameNormalForm(otherName) == normalform){
+            return teams[otherName];
+        }
+    }
+    return false;
+}
+
+function removeTeam(team){
+    team.closed = true;
+    delete teams[team.name];
+    disableInstance(team.baseInstance);
+}
+
 let activeInstances = [];
 function enableInstance(instance){
     activeInstances.push(instance);
@@ -187,12 +276,8 @@ function enableInstance(instance){
 function disableInstance(instance){
     activeInstances = activeInstances.filter((inst)=>inst != instance);
     instance.active = false;
+    instance.readyState = false;
 }
-
-
-let teams = [];
-teams.push(new Team("Team A"));
-teams.push(new Team("Team B"));
 
 function createCombatInstance(leftTeam, rightTeam){
     
@@ -266,12 +351,18 @@ function loop(){
         activeInstances[i].run(dt);
     }
 
-    // Matchmaking
-    if (activeInstances.length == 2){
-        if (activeInstances[0].readyState && activeInstances[1].readyState){
-            let combat =createCombatInstance(teams[0],teams[1]);
-            enableInstance(combat);
+    // Quick n dirty Matchmaking
+    let matchmaker = [];
+    for (let id in teams){
+        let team = teams[id];
+        if (team.currentInstance == team.baseInstance && team.baseInstance.readyState == true){
+            matchmaker.push(team);
         }
+    }
+
+    for (let i = 0; i < matchmaker.length-1; i += 2) {
+        let combat =createCombatInstance(matchmaker[i],matchmaker[i+1]);
+        enableInstance(combat);
     }
 
     setTimeout(loop, TIMESTEP);
