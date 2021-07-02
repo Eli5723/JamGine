@@ -446,7 +446,7 @@ class ServerInstance {
             if (spawn) {
                 this.createClientEntity(ws,new EntityRecord("Player", spawn.x + 4, spawn.y + 4, "Block","Flight","Poke","Flight","Bow","Pick"));    
             } else {
-                this.createClientEntity(ws,new EntityRecord("Player", 0, 0, "Block","Flight","Poke","Flight","Bow","Pick"));
+                this.createClientEntity(ws,new EntityRecord("Player", 0, 0, "Block","Poke","Flight","Bow","Pick"));
             }
         }
     }

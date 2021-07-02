@@ -77,7 +77,7 @@ async function main(){
     Mouse.setView(app.view);
 
     // Connect to server
-    Net.connect("ws:\\52.186.156.218:8080");
+    Net.connect("wss:\\52.186.156.218:8080");
 
     // Establish initial time
     time = new Date().getTime();

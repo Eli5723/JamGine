@@ -6,7 +6,7 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "production": "parcel build ./src/client/*.html --no-minify --no-cache && cp -R ./assetsrc/* ./dist",
+    "production": "parcel build ./src/client/*.html --no-minify --public-url ./ --no-cache && cp -R ./assetsrc/* ./dist",
     "development": "parcel ./src/client/*.html",
     "run": "(sudo node ./staticserve.js & node ./src/server/Index.js)"
   },
