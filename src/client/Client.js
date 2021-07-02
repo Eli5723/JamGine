@@ -138,24 +138,24 @@ function makeid(length) {
 }
 
 ///Test code
-setTimeout(()=>{
-    let username = makeid(10);
-    packet.writeByte(MSGTYPE.AUTH_TOKEN);   
-    packet.writeAscii(username);
-    Net.send(packet.flush());
-},1000);
-setTimeout(()=>{
-    let teamName = makeid(10);
-    packet.writeByte(MSGTYPE.TEAM_CREATE);
-    packet.writeAscii(teamName);
-    Net.send(packet.flush());
-},2000);
+// setTimeout(()=>{
+//     let username = makeid(10);
+//     packet.writeByte(MSGTYPE.AUTH_TOKEN);   
+//     packet.writeAscii(username);
+//     Net.send(packet.flush());
+// },1000);
+// setTimeout(()=>{
+//     let teamName = makeid(10);
+//     packet.writeByte(MSGTYPE.TEAM_CREATE);
+//     packet.writeAscii(teamName);
+//     Net.send(packet.flush());
+// },2000);
 
-setTimeout(()=>{
-    packet.writeByte(MSGTYPE.READY);
+// setTimeout(()=>{
+//     packet.writeByte(MSGTYPE.READY);
 
-    Net.send(packet.flush());
-},3000);
+//     Net.send(packet.flush());
+// },3000);
 
 
 // Team
