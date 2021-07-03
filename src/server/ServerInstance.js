@@ -472,9 +472,11 @@ class ServerInstance {
                     this.createServerEntity(new EntityRecord("Core",(this.width/2) - 12,0,0,0));
             } else if (ent.type == Entities.Cannon){
                 if ((!this.combat)){
-                    packet.writeByte(MSGTYPE.INFO_SET);
-                    this.info.encodeSet(packet, "budget",this.info.get("budget")+10);
-                    this.players.broadcast(packet.flush());
+                    this.grantDolla(30);
+                }
+            } else if (ent.type == Entities.Slingshot){
+                if ((!this.combat)){
+                    this.grantDolla(10);
                 }
             }
         }
