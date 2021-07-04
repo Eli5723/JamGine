@@ -370,6 +370,9 @@ class ServerInstance {
                     case Entities.Cannon:
                         teamEntities.push(new EntityRecord("Cannon",ent.x,ent.y,0,0));
                     break;
+                    case Entities.Slingshot:
+                        teamEntities.push(new EntityRecord("Slingshot",ent.x,ent.y,0,0));
+                    break;
                 }
             } else {
                 switch(ent.type){
